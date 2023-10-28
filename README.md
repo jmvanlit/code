@@ -7,5 +7,3 @@ Yet, research has not examined how citizens evaluate these competing claims. We 
 Focusing on the judiciary as one of the prime targets of autocratization and as last bulwark of democracy, we test these hypotheses using a factorial survey experiment in the Netherlands, Germany, and France (n = 9159). We experimentally manipulate the ambiguity of an autocratic action, the presence of a democratic defence, and the credibility of democratic defenders.
 
 We find strong evidence that democratic defence is possible, but only under strict conditions of non-self-interest. Our findings have implications for the research on democratic resilience, as well as for democratic defenders in practice.
-
-Test local commit
