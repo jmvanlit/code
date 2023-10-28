@@ -19,6 +19,7 @@ library(texreg)
 library(mediation)
 library(tibble)
 library(kableExtra)
+library(stringr)
 
 ##### Data import --------------------------------------------------------------
 demojudges <- read.csv("data/demojudges.csv") |> 
@@ -192,37 +193,151 @@ im.tw.eval <- lm(data = demojudges,
                    post_libdem_frelect)
 
 ### Figure 3 ----
-
-# plot parameters
-fig3_legend <- c("**Successful**  \ndemocratic defence", "**Unsuccessful**  \ndemocratic defence", "**Backlash**  \nagainst democratic defence")
-fig3_colours <- c("#26c0c7", "#5151d3", "#d83790")
-
-# prepare data
-im.tw.eval.plot <- im.tw.eval |> 
+im.tw.eval.plot <- im.tw.eval |>
   tidy(conf.int = TRUE) |> 
   filter(term != "(Intercept)",
          term != "post_libdem_frelect") |> 
-  mutate(term = case_when(
-    term == "justificationcorruption" ~ "Action: media  \nJustification: corruption  \nDemocratic defence: no",
-    term == "demdefyes" ~ "Action: media  \nJustification: none  \nDemocratic defence: yes",
-    term == "justificationself-serving" ~ "Action: media  \nJustification: self-serving  \nDemocratic defence: no",
-    term == "actionjudiciary" ~ "Action: judiciary   \nJustification: none  \nDemocratic defence: no",
-    term == "justificationcorruption:demdefyes" ~ "Action: media  \nJustification: corruption  \nDemocratic defence: yes",
-    term == "justificationcorruption:actionjudiciary" ~ "Action: judiciary  \nJustification: corruption  \nDemocratic defence: no",
-    term == "justificationself-serving:demdefyes" ~ "Action: media  \nJustification: self-serving  \nDemocratic defence: yes",
-    term == "justificationself-serving:actionjudiciary" ~ "Action: judiciary  \nJustification: self-serving  \nDemocratic defence: no",
-    term == "actionjudiciary:demdefyes" ~ "Action: judiciary   \nJustification: none  \nDemocratic defence: yes",
-    term == "justificationcorruption:actionjudiciary:demdefyes" ~ "Action: judiciary  \nJustification: corruption  \nDemocratic defence: yes",
-    term == "justificationself-serving:actionjudiciary:demdefyes" ~ "Action: judiciary  \nJustification: self-serving  \nDemocratic defence: yes",
-  )) |> 
+  tibble::add_row(term = "mediareference",
+                  estimate = 0,
+                  conf.low = 0,
+                  conf.high = 0) |> 
+  mutate(demdef = ifelse(str_detect(term, "demdefyes"), "yes", "no"),
+         action = ifelse(str_detect(term, "actionjudiciary"), "judiciary", "media"),
+         justification = ifelse(str_detect(term, "justificationcorruption"), "Corruption", 
+                                ifelse(str_detect(term, "justificationself-serving"), "Self-serving", "None"))) |> 
+  mutate(direction = case_when(
+    estimate > 0 & p.value < 0.05 ~ "positive",
+    estimate < 0 & p.value < 0.05 ~ "negative",
+    TRUE ~ "null"))
+
+
+# plot parameters
+im.colours <- c("media" = "#5151d3",
+                "judiciary" = "#e68619")
+
+im.legend <- c("media" = "Autocratic action targeting  \n**the media**",
+               "judiciary" = "Autocratic action targeting  \n**the judiciary**")
+
+text <- data.frame(
+  label = c("Point-estimates above  the 0-line denote  \n**backlash against democratic defence**", "Point-estimates below the 0-line denote  \n**successful democratic defence**"),
+  demdef = c("yes", "yes"),
+  x = c(0.2, 3.4),
+  y = c(0.45, -0.5),
+  hjust = c(0, 1)
+)
+
+arrows <- 
+  tibble(
+    x = c(2.1, 0.6),
+    xend = c(1, 1),
+    y = c(-0.45, 0.4), 
+    yend = c(-0.297, 0.231),
+    demdef = c("yes", "yes")
+  )
+
+# plot
+fig3 <- 
+ggplot(data = im.tw.eval.plot,
+       aes(x = justification,
+           y = estimate)) +
+  
+  # zero-line
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             colour = "darkgrey") +
+  
+  # errorbar
+  geom_errorbar(aes(ymin = conf.low,
+                    ymax = conf.high,
+                    colour = action),
+                size = 0.6,
+                width = 0,
+                position = position_dodge(width = 0.5)) +
+  
+  # line
+  geom_line(aes(group = action,
+                colour = action),
+            position = position_dodge(width = 0.5)) +
+  
+  # points
+  geom_point(aes(colour = action,
+                 shape = action),
+             position = position_dodge(width = 0.5),
+             size = 3) +
+  
+  # facets
+  facet_wrap(~ demdef,
+             labeller = as_labeller(c(yes = "**Democratic defence**",
+                                      no = "No democratic defence"))) +
+  
+  # annotations
+  geom_richtext(data = text,
+                label.colour = "white",
+                text.colour = "darkgrey",
+                size = 3,
+                aes(x = x,
+                    y = y,
+                    label = label,
+                    hjust = hjust)) +
+  
+  geom_curve(data = arrows, 
+             aes(x = x, 
+                 y = y, 
+                 xend = xend, 
+                 yend = yend),
+             arrow = arrow(length = unit(0.2, "cm")), 
+             size = 0.3,
+             color = "darkgrey") +
+  
+  # theme
+  theme_classic() +
+  theme(axis.text.y = ggtext::element_markdown(),
+        legend.text = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.key.width = unit(1.5, "cm"),
+        strip.text.x = ggtext::element_markdown())+
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  scale_colour_manual(values = im.colours,
+                      labels = im.legend) +
+  scale_shape_manual(values = c(15, 16),
+                     labels = im.legend) +
+  scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
+
+ggsave(filename  = "figures/threeway.png",
+       plot = fig3,
+       width = 18,
+       height = 14,
+       dpi = 300,
+       units = "cm")
+
+### Alternative to Figure 3 ----
+
+# plot parameters
+alttw_legend <- c("null" = "No difference with reference category", 
+                  "negative"= "Proposal is perceived as  \n**more democratic**", 
+                  "positive" = "Proposal is perceived as  \n**less democratic**")
+alttw_colours <- c("#26c0c7", "#5151d3", "#d83790")
+
+# prepare data
+tw.alt.plot <- im.tw.eval |> 
+  tidy(conf.int = TRUE) |> 
+  filter(term != "(Intercept)",
+         term != "post_libdem_frelect") |> 
+  tibble::add_row(term = "**Reference**  \nactionmedia:justificationnone:demdefno",
+                  estimate = 0,
+                  conf.low = 0,
+                  conf.high = 0) |> 
   mutate(direction = case_when(
     estimate > 0 & p.value < 0.05 ~ "positive",
     estimate < 0 & p.value < 0.05 ~ "negative",
     TRUE ~ "null"))
 
 # create plot
-fig3 <- 
-  ggplot(data = im.tw.eval.plot,
+tw.coef.plot <- 
+  ggplot(data = tw.alt.plot,
          aes(x = estimate,
              y = reorder(term, desc(estimate)))) +
   
@@ -246,12 +361,12 @@ fig3 <-
   
   # theme
   theme_classic() +
-  scale_colour_manual(values = fig3_colours,
-                      labels = fig3_legend) +
+  scale_colour_manual(values = alttw_colours,
+                      labels = alttw_legend) +
   scale_shape_manual(values = c(15, 17, 19),
-                     labels = fig3_legend) +
+                     labels = alttw_legend) +
   scale_linetype_manual(values = c("dashed", "solid", "dotdash"),
-                        labels = fig3_legend) +
+                        labels = alttw_legend) +
   
   # labels and legend
   labs(x = NULL,
@@ -264,13 +379,13 @@ fig3 <-
         legend.key.width = unit(1.5, "cm"),
         legend.justification = c(1,0))
 
-ggsave(filename  = "figures/threeway.png",
-       plot = fig3,
+ggsave(filename  = "figures/twcoeffs.png",
+       plot = tw.coef.plot,
        width = 18,
        height = 14,
        dpi = 300,
        units = "cm")
-
+  
 ##### Table Main Models --------------------------------------------------------
 main_models <- list(sm.eval, im.si.eval, im.jd.eval, im.tw.eval)
 
