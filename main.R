@@ -113,7 +113,7 @@ fig2_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |>
     term == "demdefyes" ~ "H2: **Democratic defence hypothesis**  \n*Reference: no democratic defence*",
     term == "actionjudiciary:demdefyes" ~ "H3: **Credibility hypothesis**  \nDemocratic defence * Action against judiciary",
     term == "justificationself-serving:demdefyes" ~ "H4: **Ambiguity hypothesis**  \nSelf-serving justification * Democratic defence  \n*Reference: no justification*",
-    term == "justificationcorruption:demdefyes" ~ "H4: **Ambiguity hypothesis**  \nCorruption justification * Democratic defence  \n*Reference: no justification"
+    term == "justificationcorruption:demdefyes" ~ "H4: **Ambiguity hypothesis**  \nCorruption justification * Democratic defence  \n*Reference: no justification*"
   ))
 
 # create plot
@@ -210,15 +210,14 @@ im.tw.eval.plot <- im.tw.eval |>
     estimate < 0 & p.value < 0.05 ~ "negative",
     TRUE ~ "null"))
 
-
 # plot parameters
-im.colours <- c("media" = "#5151d3",
+im.colours.1 <- c("media" = "#5151d3",
                 "judiciary" = "#e68619")
 
-im.legend <- c("media" = "Autocratic action targeting  \n**the media**",
+im.legend.1 <- c("media" = "Autocratic action targeting  \n**the media**",
                "judiciary" = "Autocratic action targeting  \n**the judiciary**")
 
-text <- data.frame(
+text.1 <- data.frame(
   label = c("Point-estimates above  the 0-line denote  \n**backlash against democratic defence**", "Point-estimates below the 0-line denote  \n**successful democratic defence**"),
   demdef = c("yes", "yes"),
   x = c(0.2, 3.4),
@@ -226,7 +225,7 @@ text <- data.frame(
   hjust = c(0, 1)
 )
 
-arrows <- 
+arrows.1 <- 
   tibble(
     x = c(2.1, 0.6),
     xend = c(1, 1),
@@ -271,7 +270,7 @@ ggplot(data = im.tw.eval.plot,
                                       no = "No democratic defence"))) +
   
   # annotations
-  geom_richtext(data = text,
+  geom_richtext(data = text.1,
                 label.colour = "white",
                 text.colour = "darkgrey",
                 size = 3,
@@ -280,7 +279,7 @@ ggplot(data = im.tw.eval.plot,
                     label = label,
                     hjust = hjust)) +
   
-  geom_curve(data = arrows, 
+  geom_curve(data = arrows.1, 
              aes(x = x, 
                  y = y, 
                  xend = xend, 
@@ -300,10 +299,10 @@ ggplot(data = im.tw.eval.plot,
   labs(x = NULL,
        y = NULL,
        title = NULL) +
-  scale_colour_manual(values = im.colours,
-                      labels = im.legend) +
+  scale_colour_manual(values = im.colours.1,
+                      labels = im.legend.1) +
   scale_shape_manual(values = c(15, 16),
-                     labels = im.legend) +
+                     labels = im.legend.1) +
   scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
 
 ggsave(filename  = "figures/threeway.png",
@@ -313,7 +312,109 @@ ggsave(filename  = "figures/threeway.png",
        dpi = 300,
        units = "cm")
 
-### Alternative to Figure 3 ----
+### First Alternative to Figure 3 ----
+# plot parameters
+im.colours.2 <- c("yes" = "#26c0c7",
+                  "no" = "#d83790")
+
+im.legend.2 <- c("yes" = "Democratic defence **present**",
+                 "no" = "**No** democratic defence")
+
+text.2 <- data.frame(
+  label = c("Point-estimates above  the 0-line denote  \n**backlash against democratic defence**", "Point-estimates below the 0-line denote  \n**successful democratic defence**"),
+  action = c("media", "judiciary"),
+  x = c(0.2, 3.6),
+  y = c(0.45, -0.5),
+  hjust = c(0, 1)
+)
+
+arrows.2 <- 
+  tibble(
+    x = c(2.5, 0.6, 0.3),
+    xend = c(1.25, 1, 2.1),
+    y = c(-0.43, 0.4, -0.5), 
+    yend = c(-0.297, 0.231, -0.38),
+    action = c("judiciary", "media", "media")
+  )
+
+fig3alt <- 
+  ggplot(data = im.tw.eval.plot,
+         aes(x = justification,
+             y = estimate)) +
+  
+  # zero-line
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             colour = "darkgrey") +
+  
+  # errorbar
+  geom_errorbar(aes(ymin = conf.low,
+                    ymax = conf.high,
+                    colour = demdef),
+                size = 0.6,
+                width = 0,
+                position = position_dodge(width = 0.5)) +
+  
+  # line
+  geom_line(aes(group = demdef,
+                colour = demdef),
+            position = position_dodge(width = 0.5)) +
+  
+  # points
+  geom_point(aes(colour = demdef,
+                 shape = demdef),
+             position = position_dodge(width = 0.5),
+             size = 3) +
+  
+  # facets
+  facet_wrap(~ action,
+             labeller = as_labeller(c(media = "Autocratic action targeting **the media**",
+                                      judiciary = "Autocratic action targeting **the judiciary**"))) +
+
+  # annotations
+  geom_richtext(data = text.2,
+                label.colour = "white",
+                text.colour = "darkgrey",
+                size = 3,
+                aes(x = x,
+                    y = y,
+                    label = label,
+                    hjust = hjust)) +
+  
+  geom_curve(data = arrows.2, 
+             aes(x = x, 
+                 y = y, 
+                 xend = xend, 
+                 yend = yend),
+             arrow = arrow(length = unit(0.2, "cm")), 
+             size = 0.3,
+             color = "darkgrey") +
+  
+  # theme
+  theme_classic() +
+  theme(axis.text.y = ggtext::element_markdown(),
+        legend.text = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.key.width = unit(1.5, "cm"),
+        strip.text.x = ggtext::element_markdown())+
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  scale_colour_manual(values = im.colours.2,
+                      labels = im.legend.2) +
+  scale_shape_manual(values = c(15, 16),
+                     labels = im.legend.2) +
+  scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
+
+ggsave(filename  = "figures/threeway-alt.png",
+       plot = fig3alt,
+       width = 18,
+       height = 14,
+       dpi = 300,
+       units = "cm")
+
+### Second Alternative to Figure 3 ----
 
 # plot parameters
 alttw_legend <- c("null" = "No difference with reference category", 
