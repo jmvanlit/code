@@ -20,6 +20,7 @@ library(mediation)
 library(tibble)
 library(kableExtra)
 library(stringr)
+library(tidyr)
 
 ##### Data import --------------------------------------------------------------
 demojudges <- read.csv("data/demojudges.csv") |> 
@@ -623,6 +624,29 @@ sm.protest <- map_df(protest.dvs, run_multiple_lm) |>
   mutate(model = "simple") |> 
   mutate(dv = factor(dv, levels = c("dv_protest", "dv_protest_scaled", "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
                                     "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")))
+
+#### Table for Protest-dv ----
+protest.table <- sm.protest |> 
+  mutate(sig = case_when(p.value < 0.05 ~ "*",
+                         p.value < 0.01 ~ "**",
+                         p.value < 0.001 ~ "***",
+                         TRUE ~ ""),
+         stat = str_c(round(estimate, 2), " (", round(std.error,2 ), ")", sig)) |> 
+  filter(term != "post_libdem_frelect",
+         dv != "dv_protest_scaled") |> 
+  dplyr::select(term, dv, stat) |> 
+  pivot_wider(names_from = dv, values_from = stat) |> 
+  t()
+  
+protest.table
+
+# Table 
+kable(protest.table, 
+      booktabs = TRUE, 
+      format = "latex",
+      caption = "Does Democratic Defence Cue Political Participation?",
+      label = "protest",
+      escape = TRUE)
 
 # create a scaled protest battery for appendix figure to more easily compare effect sized
 sm.scaled.protest <- sm.protest |> 
