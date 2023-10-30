@@ -1,5 +1,3 @@
-
-
 ### Libraries ------------------------------------------------------------------
 library(dplyr)
 library(haven)
@@ -10,6 +8,8 @@ library(forcats)
 library(purrr)
 library(texreg)
 library(kableExtra)
+library(tidyr)
+library(stringr)
 
 ##### Data import --------------------------------------------------------------
 demojudges_raw <- read.csv("data/demojudges.csv") |> 
@@ -507,3 +507,168 @@ texreg(models_eval_rile,
        label = "tab:resp")
 
 ##### Unweighted ---------------------------------------------------------------
+
+sm.eval.unw <- lm(data = demojudges,
+              
+              dv_eval ~ 
+                # treatments
+                justification + action + demdef)
+              
+im.si.eval.unw <- lm(data = demojudges,
+                 
+                 dv_eval ~ 
+                   #treatments
+                   justification + action + demdef + (action * demdef))
+
+im.jd.eval.unw <- lm(data = demojudges,
+                 
+                 dv_eval ~ 
+                   #treatments
+                   justification + action + demdef + (justification * demdef))
+
+im.tw.eval.unw <- lm(data = demojudges,
+                 
+                 dv_eval ~ 
+                   
+                   #treatments
+                   justification + action + demdef +
+                   (justification * demdef) + (justification * action) + (demdef * action) +
+                   (justification * demdef * action))
+
+unw_models <- list(sm.eval.unw, im.si.eval.unw, im.jd.eval.unw, im.tw.eval.unw)
+
+texreg(unw_models,
+       caption = "Does Democratic Defence Matter (Unweighted Data)?",
+       caption.above = TRUE,
+       label = "tab:unwmodels")
+
+# Mediation ----
+### Ambiguity ----
+tbl_ambi.unw <- demojudges |> 
+  filter(dv_ambi != "NA") |> 
+  
+  # reverse coding to match intuition: higher scores mean more ambiguity
+  mutate(dv_ambi = case_when(
+    dv_ambi == 1 ~ 6,
+    dv_ambi == 2 ~ 5,
+    dv_ambi == 3 ~ 4,
+    dv_ambi == 4 ~ 3,
+    dv_ambi == 5 ~ 2,
+    dv_ambi == 6 ~ 1,
+  ))
+
+cm.ambi.xy.unw <- lm(dv_eval ~ justification + action + demdef,
+                 data = tbl_ambi.unw)
+
+cm.ambi.xm.unw <- lm(dv_ambi ~ justification + action + demdef,
+                 data = tbl_ambi.unw)
+
+cm.ambi.xmy.unw <- lm(dv_eval ~ justification + dv_ambi + action + demdef,
+                  data = tbl_ambi.unw)
+
+texreg(list(cm.ambi.xy.unw, cm.ambi.xm.unw, cm.ambi.xmy.unw),
+       custom.header = list("Dependent Variable:" = 1:3),
+       custom.model.names = c("Democracy Evaluation", "Ambiguity", "Democracy Evaluation"),
+       label = "tab:ambi-unweighted",
+       caption = "Ambiguity Mediation Models (Unweighted Data)",
+       caption.above = TRUE)
+
+cm.ambi.cor.unw <- mediation::mediate(cm.ambi.xm.unw, cm.ambi.xmy.unw,
+                                  treat = "justification",
+                                  treat.value = "corruption",
+                                  control.value = "none",
+                                  mediator = "dv_ambi")
+
+summary(cm.ambi.cor.unw)
+
+cm.ambi.sel.unw <- mediation::mediate(cm.ambi.xm.unw, cm.ambi.xmy.unw,
+                                  treat = "justification",
+                                  treat.value = "self-serving",
+                                  control.value = "none",
+                                  mediator = "dv_ambi")
+
+summary(cm.ambi.sel.unw) 
+
+
+### Credibility ----
+# these models are run without demdef as dv_cred was only shown when demdef == 1
+
+tbl_cred.unw <- demojudges |> 
+  filter(dv_cred != "NA") |> 
+  
+  # reverse coding to match intuition: higher scores mean more credibility
+  mutate(dv_cred = case_when(
+    dv_cred == 1 ~ 6,
+    dv_cred == 2 ~ 5,
+    dv_cred == 3 ~ 4,
+    dv_cred == 4 ~ 3,
+    dv_cred == 5 ~ 2,
+    dv_cred == 6 ~ 1,
+  ))
+
+cm.cred.xy.unw <- lm(dv_eval ~ justification + action,
+                 data = tbl_cred.unw)
+
+cm.cred.xm.unw <- lm(dv_cred ~ justification + action,
+                 data = tbl_cred.unw)
+
+cm.cred.xmy.unw <- lm(dv_eval ~ justification + dv_cred + action,
+                  data = tbl_cred.unw)
+
+texreg(list(cm.cred.xy.unw, cm.cred.xm.unw, cm.cred.xmy.unw),
+       custom.header = list("Dependent Variable:" = 1:3),
+       custom.model.names = c("Democracy Evaluation", "Credibility", "Democracy Evaluation"),
+       label = "tab:cred_unweighted",
+       caption = "Credibility Mediation Models (Unweighted Data)",
+       caption.above = TRUE)
+
+cm.cred.unw <- mediation::mediate(cm.cred.xm.unw, cm.cred.xmy.unw,
+                              treat = "action",
+                              treat.value = "judiciary",
+                              control.value = "media",
+                              mediator = "dv_cred")
+
+summary(cm.cred.unw)
+
+# protest ----
+# define new function to run multiple lm() for all protest items and the sum-index
+run_multiple_lm_unw <- function(dv){
+  lm_formula <- as.formula(paste(dv, "~ action + demdef + justification"))
+  model <- lm(lm_formula, data = demojudges)
+  result <- tidy(model, conf.int = TRUE)
+  result$dv <- dv
+  return(result)
+}
+
+protest.dvs.unw <- c("dv_protest",
+                 "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
+                 "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")
+
+### simple model
+sm.protest.unw <- map_df(protest.dvs.unw, run_multiple_lm_unw) |> 
+  mutate(model = "simple") |> 
+  mutate(dv = factor(dv, levels = c("dv_protest", "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
+                                    "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")))
+
+#### Table for Protest-dv ----
+protest.table.unw <- sm.protest.unw |> 
+  mutate(sig = case_when(p.value < 0.05 ~ "*",
+                         p.value < 0.01 ~ "**",
+                         p.value < 0.001 ~ "***",
+                         TRUE ~ ""),
+         stat = str_c(round(estimate, 2), " (", round(std.error,2 ), ")", sig)) |> 
+  filter(term != "post_libdem_frelect") |> 
+  dplyr::select(term, dv, stat) |> 
+  pivot_wider(names_from = dv, values_from = stat) |> 
+  t()
+
+
+# Table 
+kable(protest.table.unw, 
+      booktabs = TRUE, 
+      format = "latex",
+      caption = "Does Democratic Defence Cue Political Participation? (Unweighted Data)",
+      label = "protest_unw",
+      escape = TRUE)
+
+# /./ End of Code /./

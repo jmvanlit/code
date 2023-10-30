@@ -547,7 +547,8 @@ cm.ambi.sel <- mediation::mediate(cm.ambi.xm, cm.ambi.xmy,
                                   control.value = "none",
                                   mediator = "dv_ambi")
 
-summary(cm.ambi.sel)
+summary(cm.ambi.sel) 
+# To Do: output table
 
 ### Credibility ----
 # these models are run without demdef as dv_cred was only shown when demdef == 1
@@ -591,6 +592,7 @@ cm.cred <- mediation::mediate(cm.cred.xm, cm.cred.xmy,
                               mediator = "dv_cred")
 
 summary(cm.cred)
+# To Do: output table
 
 #####  Protest Effects ---------------------------------------------------------
 
@@ -638,7 +640,6 @@ protest.table <- sm.protest |>
   pivot_wider(names_from = dv, values_from = stat) |> 
   t()
   
-protest.table
 
 # Table 
 kable(protest.table, 
