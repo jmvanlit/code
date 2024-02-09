@@ -7,7 +7,7 @@ run_multiple_lm <- function(dv){
   return(result)
 }
 
-### Libraries ------------------------------------------------------------------
+##### Libraries ----------------------------------------------------------------
 library(dplyr)
 library(haven)
 library(ggplot2)
@@ -21,6 +21,7 @@ library(tibble)
 library(kableExtra)
 library(stringr)
 library(tidyr)
+library(lavaan)
 
 ##### Data import --------------------------------------------------------------
 demojudges <- read.csv("data/demojudges.csv") |> 
@@ -33,12 +34,17 @@ demojudges <- demojudges |>
   mutate(
     justification = as.factor(justification),
     action = as.factor(action),
-    demdef = as.factor(demdef))
+    demdef = as.factor(demdef),
+    treatment_group = as.factor(treatment_group))
 
 ### Set reference categories
 demojudges$justification <- relevel(demojudges$justification, ref = "none")
 demojudges$action <- relevel(demojudges$action, ref = "media")
 demojudges$demdef <- relevel(demojudges$demdef, ref = "no")
+
+################################################################################
+##### MAIN RESULTS           #####
+##################################
 
 ##### Simple models: H1a, H1b, H2 ----------------------------------------------
 ### DV = evaluation
@@ -51,7 +57,6 @@ sm.eval <- lm(data = demojudges,
                 justification + action + demdef +
                 
                 # unbalanced covariates
-                # income_nl left out for now as it is very incomplete and skews the analysis heavily
                 post_libdem_frelect)
 
 ##### Interaction effect H3 ---------------------------------------------------- 
@@ -65,11 +70,9 @@ im.si.eval <- lm(data = demojudges,
                    justification + action + demdef + (action * demdef) +
                    
                    # unbalanced covariates
-                   # income_nl left out for now as it is very incomplete and skews the analysis heavily
                    post_libdem_frelect)
 
 ##### Interaction effect H4 ----------------------------------------------------
-
 im.jd.eval <- lm(data = demojudges,
                  weights = weight,
                  
@@ -78,10 +81,23 @@ im.jd.eval <- lm(data = demojudges,
                    justification + action + demdef + (justification * demdef) +
                    
                    # unbalanced covariates
-                   # income_nl left out for now as it is very incomplete and skews the analysis heavily
                    post_libdem_frelect)
 
-### Figure 2 -------------------------------------------------------------------
+##### Threeway Interaction H5 --------------------------------------------------
+im.tw.eval <- lm(data = demojudges,
+                 weights = weight,
+                 
+                 dv_eval ~
+                   
+                   #treatments
+                   justification + action + demdef +
+                   (justification * demdef) + (justification * action) + (demdef * action) +
+                   (justification * demdef * action) +
+                   
+                   # unbalanced covariates
+                   post_libdem_frelect)
+
+### Figure: Main Analysis ------------------------------------------------------
 
 # Plot parameters
 fig2_legend <- c("Model 3  \n**ambiguity** interaction", "Model 2  \n**credibility** interaction", "Model 1  \n**without** interaction")
@@ -106,7 +122,7 @@ im.jd.eval.plot <- im.jd.eval |>
          term != "post_libdem_frelect") |> 
   mutate(model = "ambiguity")
 
-fig2_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |> 
+fig1_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |> 
   mutate(term = case_when(
     term == "justificationself-serving" ~ "H1a: **Self-serving hypothesis**  \nJustification: self-serving  \n*Reference: no justification*",
     term == "justificationcorruption" ~ "H1b: **Positive valence hypothesis**  \n*Reference: no justification*",
@@ -119,7 +135,7 @@ fig2_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |>
 
 # create plot
 fig2 <- 
-  ggplot(data = fig2_data,
+  ggplot(data = fig1_data,
          aes(x = estimate,
              y = reorder(term, desc(term)))) +
   
@@ -133,21 +149,15 @@ fig2 <-
                  shape = model),
              position = position_dodge(width = .5),
              size = 3) +
+  
   geom_errorbarh(aes(xmin = conf.low,
                      xmax = conf.high,
                      colour = model,
                      linetype = model),
                  position = position_dodge(width = .5),
                  height = 0,
-                 size = 0.6) +
-  
-  # figure out if we want to display the point-estimates in the plot
-  # point-estimates
-  #geom_label(aes(label = round(estimate, 2),
-  #               colour = model),
-  #           position = position_dodge(width = .5),
-  #           show.legend = FALSE) +
-  
+                 linewidth = 0.6) +
+
   # theme
   theme_classic() +
   scale_colour_manual(values = fig2_colours,
@@ -171,186 +181,262 @@ fig2 <-
          shape = guide_legend(reverse = TRUE),
          linetype = guide_legend(reverse = TRUE))
 
-ggsave(filename  = "figures/main_analysis.png",
+# ... and save!
+ggsave(filename  = "figures/main.png",
        plot = fig2,
        width = 18,
        height = 14,
        dpi = 300,
        units = "cm")
 
-##### Three-Way interaction H5 -------------------------------------------------
-im.tw.eval <- lm(data = demojudges,
-                 weights = weight,
-                 
-                 dv_eval ~ 
-                   
-                   #treatments
-                   justification + action + demdef +
-                   (justification * demdef) + (justification * action) + (demdef * action) +
-                   (justification * demdef * action) +
-                   
-                   # unbalanced covariates
-                   # income_nl left out for now as it is very incomplete and skews the analysis heavily
-                   post_libdem_frelect)
+##### Table: Main Analysis -----------------------------------------------------
+main_models <- list(sm.eval, im.si.eval, im.jd.eval, im.tw.eval)
 
-### Figure 3 ----
-im.tw.eval.plot <- im.tw.eval |>
-  tidy(conf.int = TRUE) |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  tibble::add_row(term = "mediareference",
-                  estimate = 0,
-                  conf.low = 0,
-                  conf.high = 0) |> 
-  mutate(demdef = ifelse(str_detect(term, "demdefyes"), "yes", "no"),
-         action = ifelse(str_detect(term, "actionjudiciary"), "judiciary", "media"),
-         justification = ifelse(str_detect(term, "justificationcorruption"), "Corruption", 
-                                ifelse(str_detect(term, "justificationself-serving"), "Self-serving", "None"))) |> 
-  mutate(direction = case_when(
-    estimate > 0 & p.value < 0.05 ~ "positive",
-    estimate < 0 & p.value < 0.05 ~ "negative",
-    TRUE ~ "null"))
+texreg(main_models,
+       caption = "Does Democratic Defence Matter?",
+       caption.above = TRUE,
+       label = "tab:mainmodels")
+
+### Fitted means for Credibility Interaction -----------------------------------
+# data preparation
+im.si.intercept <- coef(im.si.eval)[1]
+
+im.si.eval.2 <- im.si.eval |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(model = "ambiguity",
+         fitted_mean = case_when(
+           term == "(Intercept)" ~ estimate,
+           TRUE ~ im.si.intercept + estimate),
+         fitted_low = fitted_mean - 1.96 * std.error,
+         fitted_high = fitted_mean + 1.96 * std.error,
+         demdef = ifelse(grepl("demdefyes", term), "Democratic defence  \n**present**", "Democratic defence  \n**absent**"),
+         justification = ifelse(grepl("corruption", term), "corruption", ifelse(grepl("self-serving", term), "self-serving", "none")),
+         action = ifelse(grepl("actionjudiciary", term), "judiciary", "media")) |> 
+  filter(justification == "none") # why delete these two coefficients?
 
 # plot parameters
-im.colours.1 <- c("media" = "#5151d3",
-                "judiciary" = "#e68619")
+fig2b.colours <- c("judiciary" = "#f08db1",
+                   "media" = "#357ef3")
 
-im.legend.1 <- c("media" = "Autocratic action targeting  \n**the media**",
-               "judiciary" = "Autocratic action targeting  \n**the judiciary**")
+fig2b.legend <- c("judiciary" = "Autocratic action targeting  \nthe **judiciary**",
+                  "media" = "Autocratic action targeting  \nthe **media**")
 
-text.1 <- data.frame(
-  label = c("Point-estimates above  the 0-line denote  \n**backlash against democratic defence**", "Point-estimates below the 0-line denote  \n**successful democratic defence**"),
-  demdef = c("yes", "yes"),
-  x = c(0.2, 3.4),
-  y = c(0.45, -0.5),
-  hjust = c(0, 1)
-)
-
-arrows.1 <- 
-  tibble(
-    x = c(2.1, 0.6),
-    xend = c(1, 1),
-    y = c(-0.45, 0.4), 
-    yend = c(-0.297, 0.231),
-    demdef = c("yes", "yes")
-  )
-
-# plot
-fig3 <- 
-ggplot(data = im.tw.eval.plot,
-       aes(x = justification,
-           y = estimate)) +
+# plot ...
+fig2b <- 
+ggplot(data = im.si.eval.2,
+       aes(x = demdef,
+           y = fitted_mean)) +
   
-  # zero-line
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             colour = "darkgrey") +
-  
-  # errorbar
-  geom_errorbar(aes(ymin = conf.low,
-                    ymax = conf.high,
+  # fitted errors
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
                     colour = action),
-                size = 0.6,
                 width = 0,
-                position = position_dodge(width = 0.5)) +
+                position = position_dodge(width = 0.02),
+                linewidth = 0.7) +
   
-  # line
+  # fitted means
+  geom_point(aes(colour = action,
+                 shape = action,
+                 fill = action),
+             size = 3,
+             position = position_dodge(width = 0.02)) +
+  
+  # line to show cross-over interaction
   geom_line(aes(group = action,
                 colour = action),
-            position = position_dodge(width = 0.5)) +
-  
-  # points
-  geom_point(aes(colour = action,
-                 shape = action),
-             position = position_dodge(width = 0.5),
-             size = 3) +
-  
-  # facets
-  facet_wrap(~ demdef,
-             labeller = as_labeller(c(yes = "**Democratic defence**",
-                                      no = "No democratic defence"))) +
-  
-  # annotations
-  geom_richtext(data = text.1,
-                label.colour = "white",
-                text.colour = "darkgrey",
-                size = 3,
-                aes(x = x,
-                    y = y,
-                    label = label,
-                    hjust = hjust)) +
-  
-  geom_curve(data = arrows.1, 
-             aes(x = x, 
-                 y = y, 
-                 xend = xend, 
-                 yend = yend),
-             arrow = arrow(length = unit(0.2, "cm")), 
-             size = 0.3,
-             color = "darkgrey") +
+            linewidth = 0.7) +
   
   # theme
   theme_classic() +
-  theme(axis.text.y = ggtext::element_markdown(),
-        legend.text = ggtext::element_markdown(),
+  labs(x = "",
+       y = "") +
+  scale_colour_manual(values = fig2b.colours,
+                      labels = fig2b.legend) +
+  scale_fill_manual(values = fig2b.colours,
+                    labels = fig2b.legend) +
+  scale_shape_manual(values = c(22, 23),
+                     labels = fig2b.legend) +
+  theme(legend.text = ggtext::element_markdown(),
         legend.title = element_blank(),
         legend.position = "bottom",
         legend.key.width = unit(1.5, "cm"),
-        strip.text.x = ggtext::element_markdown())+
-  labs(x = NULL,
-       y = NULL,
-       title = NULL) +
-  scale_colour_manual(values = im.colours.1,
-                      labels = im.legend.1) +
-  scale_shape_manual(values = c(15, 16),
-                     labels = im.legend.1) +
-  scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_markdown()) +
+  coord_cartesian(xlim = c(1.4, 1.6), clip = "off")
 
-ggsave(filename  = "figures/threeway.png",
-       plot = fig3,
-       width = 18,
-       height = 14,
+# ... and save!
+ggsave(filename  = "figures/fig2b.png",
+       plot = fig2b,
+       width = 13,
+       height = 10,
        dpi = 300,
        units = "cm")
 
-### First Alternative to Figure 3 ----
+### Fitted means for Ambiguity Interaction -------------------------------------
+# data preparation
+im.jd.intercept <- coef(im.jd.eval)[1]
+
+im.jd.eval.2 <- im.jd.eval |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(model = "credibility",
+         fitted_mean = case_when(
+           term == "(Intercept)" ~ estimate,
+           TRUE ~ im.jd.intercept + estimate),
+         fitted_low = fitted_mean - 1.96 * std.error,
+         fitted_high = fitted_mean + 1.96 * std.error,
+         demdef = ifelse(grepl("demdefyes", term), "Democratic defence  \n**present**", "Democratic defence  \n**absent**"),
+         justification = ifelse(grepl("corruption", term), "corr", ifelse(grepl("self-serving", term), "self", "none")),
+         action = ifelse(grepl("actionjudiciary", term), "judiciary", "media")) |> 
+  filter(action == "media")
+
 # plot parameters
-im.colours.2 <- c("yes" = "#26c0c7",
-                  "no" = "#d83790")
+fig2c.colours <- c("self" = "#26c0c7",
+                   "corr" = "#5151d3",
+                   "none" = "#e68619")
 
-im.legend.2 <- c("yes" = "Democratic defence **present**",
-                 "no" = "**No** democratic defence")
+fig2c.legend <- c("self" = "**Self-serving**  \njustification",
+                  "corr" = "**Positively valenced**  \njustification",
+                  "none" = "**No**  \njustification")
 
-text.2 <- data.frame(
-  label = c("Point-estimates above  the 0-line denote  \n**backlash against democratic defence**", "Point-estimates below the 0-line denote  \n**successful democratic defence**"),
+
+im.jd.eval.2$justification <- factor(im.jd.eval.2$justification, levels = c("self", "none", "corr"))
+
+# plot ...
+fig2c <- 
+ggplot(data = im.jd.eval.2,
+       aes(x = demdef,
+           y = fitted_mean)) +
+  
+  # fitted errors
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
+                    colour = justification),
+                width = 0,
+                position = position_dodge(width = 0.05)) +
+  
+  # fitted means
+  geom_point(aes(colour = justification,
+                 shape = justification,
+                 fill = justification),
+             size = 3,
+             position = position_dodge(width = 0.05)) +
+  
+  # line to show cross-over interaction
+  geom_line(aes(group = justification,
+                colour = justification),
+            position = position_dodge(width = 0.05)) +
+  
+  # theme
+  theme_classic() +
+  labs(x = "",
+       y = "") +
+  scale_colour_manual(values = fig2c.colours,
+                      labels = fig2c.legend) +
+  scale_fill_manual(values = fig2c.colours,
+                    labels = fig2c.legend) +
+  scale_shape_manual(values = c(15, 17, 19),
+                     labels = fig2c.legend) +
+  theme(legend.text = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.key.width = unit(1.5, "cm"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_markdown()) +
+  coord_cartesian(xlim = c(1.4, 1.6), clip = "off")
+
+# ... and save!
+ggsave(filename  = "figures/fig2c.png",
+       plot = fig2c,
+       width = 13,
+       height = 10,
+       dpi = 300,
+       units = "cm")
+
+### Fitted means for Threeway Interaction --------------------------------------
+demojudges$treatment_group <- relevel(demojudges$treatment_group, ref = "1")
+
+tw.groups <- lm(data = demojudges,
+                weights = weight,
+                
+                dv_eval ~
+                  
+                  #treatments
+                  treatment_group +
+                   
+                  # unbalanced covariate
+                  post_libdem_frelect)
+
+tw.intercept <- coef(tw.groups)[1]
+
+tw.groups.plot <- tw.groups |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(
+    demdef = case_when(
+      term == "(Intercept)" | term == "treatment_group3" | term == "treatment_group5" | term == "treatment_group7" | term == "treatment_group9" | term == "treatment_group11" ~ "yes",
+      TRUE ~ "no"),
+    action = case_when(
+      term == "(Intercept)" | term == "treatment_group2" | term == "treatment_group3" | term == "treatment_group4" | term == "treatment_group5" | term == "treatment_group6" ~ "judiciary",
+      TRUE ~ "media"),
+    justification = case_when(
+      term == "(Intercept)" | term == "treatment_group2" | term == "treatment_group7"| term == "treatment_group8" ~ "Corruption",
+      term == "treatment_group3" | term == "treatment_group4" | term == "treatment_group9" | term == "treatment_group10" ~ "Self-serving",
+      TRUE ~ "None"),
+    fitted_mean = case_when(
+      term != "(Intercept)" ~ tw.intercept + estimate,
+      TRUE ~ estimate), 
+    fitted_low = fitted_mean - 1.96 * std.error,
+    fitted_high = fitted_mean + 1.96 * std.error)
+
+### Figure: Threeway Interaction -----------------------------------------------
+
+# Plot parameters
+im.colours <- c("yes" = "#26c0c7",
+                "no" = "#d83790")
+
+im.legend <- c("yes" = "Democratic defence **present**",
+               "no" = "**No** democratic defence")
+
+text.im <- data.frame(
+  label = c("Democratic defence can  \nbe **successful**", "There is a risk of **backlash**  \nagainst democratic defence"),
   action = c("media", "judiciary"),
-  x = c(0.2, 3.6),
-  y = c(0.45, -0.5),
-  hjust = c(0, 1)
+  x = c(2.4, 0.8),
+  y = c(1.25, 1.85),
+  hjust = c(1, 0),
+  angle = c(0, 0)
 )
 
-arrows.2 <- 
+arrows.im.media <- 
   tibble(
-    x = c(2.5, 0.6, 0.3),
-    xend = c(1.25, 1, 2.1),
-    y = c(-0.43, 0.4, -0.5), 
-    yend = c(-0.297, 0.231, -0.38),
-    action = c("judiciary", "media", "media")
+    x = c(2.45),
+    xend = c(3.15),
+    y = c(1.25), 
+    yend = c(1.4),
+    action = c("media")
   )
 
-fig3alt <- 
-  ggplot(data = im.tw.eval.plot,
-         aes(x = justification,
-             y = estimate)) +
-  
-  # zero-line
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             colour = "darkgrey") +
+arrows.im.judic <- 
+  tibble(
+    x = c(1.8),
+    xend = c(3),
+    y = c(1.88), 
+    yend = c(1.92),
+    action = c("judiciary")
+  )
+
+#fig3 <- 
+ggplot(data = tw.groups.plot,
+       aes(x = justification,
+           y = fitted_mean)) +
   
   # errorbar
-  geom_errorbar(aes(ymin = conf.low,
-                    ymax = conf.high,
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
                     colour = demdef),
                 size = 0.6,
                 width = 0,
@@ -362,27 +448,29 @@ fig3alt <-
             position = position_dodge(width = 0.5)) +
   
   # points
-  geom_point(aes(colour = demdef,
-                 shape = demdef),
-             position = position_dodge(width = 0.5),
-             size = 3) +
+  geom_point(aes(fill = demdef,
+                 shape = demdef,
+                 colour = demdef),
+             size = 3,
+             position = position_dodge(width = 0.5)) +
   
   # facets
   facet_wrap(~ action,
              labeller = as_labeller(c(media = "Autocratic action targeting **the media**",
                                       judiciary = "Autocratic action targeting **the judiciary**"))) +
-
+  
   # annotations
-  geom_richtext(data = text.2,
+  geom_richtext(data = text.im,
                 label.colour = "white",
                 text.colour = "darkgrey",
                 size = 3,
                 aes(x = x,
                     y = y,
                     label = label,
-                    hjust = hjust)) +
+                    hjust = hjust,
+                    angle = angle)) +
   
-  geom_curve(data = arrows.2, 
+  geom_curve(data = arrows.im.media, 
              aes(x = x, 
                  y = y, 
                  xend = xend, 
@@ -390,6 +478,16 @@ fig3alt <-
              arrow = arrow(length = unit(0.2, "cm")), 
              size = 0.3,
              color = "darkgrey") +
+  
+  geom_curve(data = arrows.im.judic, 
+             aes(x = x, 
+                 y = y, 
+                 xend = xend, 
+                 yend = yend),
+             arrow = arrow(length = unit(0.2, "cm")), 
+             size = 0.3,
+             color = "darkgrey",
+             curvature = -0.5) +
   
   # theme
   theme_classic() +
@@ -402,199 +500,281 @@ fig3alt <-
   labs(x = NULL,
        y = NULL,
        title = NULL) +
-  scale_colour_manual(values = im.colours.2,
-                      labels = im.legend.2) +
-  scale_shape_manual(values = c(15, 16),
-                     labels = im.legend.2) +
+  scale_colour_manual(values = im.colours,
+                      labels = im.legend) +
+  scale_fill_manual(values = im.colours,
+                    labels = im.legend) +
+  scale_shape_manual(values = c(22, 23),
+                     labels = im.legend) +
   scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
 
-ggsave(filename  = "figures/threeway-alt.png",
-       plot = fig3alt,
+# ... and save
+ggsave(filename  = "figures/threeway.png",
+       plot = fig3,
        width = 18,
        height = 14,
        dpi = 300,
        units = "cm")
 
-### Second Alternative to Figure 3 ----
+### Figure: Alternative --------------------------------------------------------
+threeway <- demojudges |> 
+  mutate(
+    group = as.factor(case_when(
+    treatment_group == 2 | treatment_group == 8 ~ 1, # no democratic defence against corruption
+    treatment_group == 6 | treatment_group == 12 ~ 2, # no democratic defence against none
+    treatment_group == 4 | treatment_group == 10 ~ 3, # no democratic defence against self-serving
+    treatment_group == 1 ~ 4, # self-interested democratic defence against corruption
+    treatment_group == 5 ~ 5, # self-interested democratic defence against none
+    treatment_group == 3 ~ 6, # self-interested democratic defence against self-serving
+    treatment_group == 7 ~ 7, # not-self-interested democratic defence against corruption
+    treatment_group == 11 ~ 8, # not-self-interested democratic defence against none
+    treatment_group == 9 ~ 9))) |>  # not-self-interested democratic defence againstself-serving
+  dplyr::select(dv_eval, group, weight, post_libdem_frelect)
+  
+model_threeway <- lm(data = threeway,
+                     weights = weight,
+                     
+                     dv_eval ~
+                  
+                     # treatments
+                     group +
+                      
+                     # unbalanced covariate
+                     post_libdem_frelect)
+
+summary(model_threeway)
+
+threeway.intercept <- coef(model_threeway)[1]
+
+threeway.plot <- model_threeway |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(
+    fitted_mean = case_when(
+      term != "(Intercept)" ~ threeway.intercept + estimate,
+      TRUE ~ estimate), 
+    fitted_low = fitted_mean - 1.96 * std.error,
+    fitted_high = fitted_mean + 1.96 * std.error,
+    demdef = case_when(
+      term == "(Intercept)" | term == "group2" | term == "group3"  ~ "no",
+      term == "group4" | term == "group5" | term == "group6"  ~ "self-interested",
+      term == "group7" | term == "group8" | term == "group9"  ~ "not-self"),
+    justification = case_when(
+      term == "(Intercept)" | term == "group4" | term == "group7"  ~ "Corruption",
+      term == "group2" | term == "group5" | term == "group8"  ~ "None",
+      term == "group3" | term == "group6" | term == "group9"  ~ "Self-serving"))
+
+threeway.plot
 
 # plot parameters
-alttw_legend <- c("null" = "No difference with reference category", 
-                  "negative"= "Proposal is perceived as  \n**more democratic**", 
-                  "positive" = "Proposal is perceived as  \n**less democratic**")
-alttw_colours <- c("#26c0c7", "#5151d3", "#d83790")
+tw.colours <- c("no" = "#5151d3",
+                "self-interested" = "#e68619",
+                "not-self" = "#26c0c7")
 
-# prepare data
-tw.alt.plot <- im.tw.eval |> 
-  tidy(conf.int = TRUE) |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  tibble::add_row(term = "**Reference**  \nactionmedia:justificationnone:demdefno",
-                  estimate = 0,
-                  conf.low = 0,
-                  conf.high = 0) |> 
-  mutate(direction = case_when(
-    estimate > 0 & p.value < 0.05 ~ "positive",
-    estimate < 0 & p.value < 0.05 ~ "negative",
-    TRUE ~ "null"))
+tw.legend <- c("no" = "**No** democratic  \ndefence",
+               "self-interested" = "**Self-interested**  \ndemocratic defence",
+               "not-self" = "**Not-self-interested**  \ndemocratic defence")
 
-# create plot
-tw.coef.plot <- 
-  ggplot(data = tw.alt.plot,
-         aes(x = estimate,
-             y = reorder(term, desc(estimate)))) +
+# plot ...
+#fig4 <- 
+ggplot(data = threeway.plot,
+       aes(x = justification,
+           y = fitted_mean)) +
   
-  # zero-line
-  geom_vline(xintercept = 0,
-             linetype = "dashed",
-             colour = "darkgrey") +
+  # errorbar
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
+                    colour = demdef),
+                size = 0.6,
+                width = 0,
+                position = position_dodge(width = 0.5)) +
   
-  # errorbars
-  geom_errorbarh(aes(xmin = conf.low,
-                     xmax = conf.high,
-                     colour = direction,
-                     linetype = direction),
-                 height = 0,
-                 size = 0.6) +
+  # line
+  geom_line(aes(group = demdef,
+                colour = demdef),
+            position = position_dodge(width = 0.5)) +
   
   # points
-  geom_point(aes(colour = direction,
-                 shape = direction),
-             size = 3) + 
+  geom_point(aes(fill = demdef,
+                 shape = demdef,
+                 colour = demdef),
+             size = 3,
+             position = position_dodge(width = 0.5)) +
   
   # theme
   theme_classic() +
-  scale_colour_manual(values = alttw_colours,
-                      labels = alttw_legend) +
-  scale_shape_manual(values = c(15, 17, 19),
-                     labels = alttw_legend) +
-  scale_linetype_manual(values = c("dashed", "solid", "dotdash"),
-                        labels = alttw_legend) +
-  
-  # labels and legend
-  labs(x = NULL,
-       y = NULL,
-       title = NULL) +
   theme(axis.text.y = ggtext::element_markdown(),
         legend.text = ggtext::element_markdown(),
         legend.title = element_blank(),
         legend.position = "bottom",
-        legend.key.width = unit(1.5, "cm"),
-        legend.justification = c(1,0))
+        legend.key.width = unit(1.5, "cm"))+
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  scale_colour_manual(values = tw.colours,
+                      labels = tw.legend) +
+  scale_fill_manual(values = tw.colours,
+                    labels = tw.legend) +
+  scale_shape_manual(values = c(15, 17, 19),
+                     labels = tw.legend) +
+  scale_x_discrete(limits=c("Self-serving", "None", "Corruption"))
 
-ggsave(filename  = "figures/twcoeffs.png",
-       plot = tw.coef.plot,
+# ... and save
+ggsave(filename  = "figures/threeway2.png",
+       plot = fig4,
        width = 18,
        height = 14,
        dpi = 300,
        units = "cm")
+
+################################################################################
+##### MEDIATION              #####
+##################################
   
-##### Table Main Models --------------------------------------------------------
-main_models <- list(sm.eval, im.si.eval, im.jd.eval, im.tw.eval)
+##### Ambiguity ----------------------------------------------------------------
 
-texreg(main_models,
-       caption = "Does Democratic Defence Matter?",
-       caption.above = TRUE,
-       label = "tab:mainmodels")
-
-##### Mediation analysis with ambiguity and credibility ------------------------
-# ambiguity lies in the justification, so that is the main explanation for that mediation
-# credibility lies in the type of actor (self-interest or not), which we simulate with the action-treatment
-
-### Ambiguity ----
+# data preparation
 tbl_ambi <- demojudges |> 
   filter(dv_ambi != "NA") |> 
   
   # reverse coding to match intuition: higher scores mean more ambiguity
-  mutate(dv_ambi = case_when(
-    dv_ambi == 1 ~ 6,
-    dv_ambi == 2 ~ 5,
-    dv_ambi == 3 ~ 4,
-    dv_ambi == 4 ~ 3,
-    dv_ambi == 5 ~ 2,
-    dv_ambi == 6 ~ 1,
-  ))
+  mutate(
+    dv_ambi = case_when(
+      dv_ambi == 1 ~ 6,
+      dv_ambi == 2 ~ 5,
+      dv_ambi == 3 ~ 4,
+      dv_ambi == 4 ~ 3,
+      dv_ambi == 5 ~ 2,
+      dv_ambi == 6 ~ 1),
+    
+    # create dummies
+    corr = case_when(
+      justification == "corruption" ~ 1,
+      TRUE ~ 0),
+    self = case_when(
+      justification == "self-serving" ~ 1,
+      TRUE ~ 0))
 
-cm.ambi.xy <- lm(dv_eval ~ justification + action + demdef,
-                 data = tbl_ambi,
-                 weights = weight)
+### Positively valenced justification increases ambiguity
 
-cm.ambi.xm <- lm(dv_ambi ~ justification + action + demdef,
-                 data = tbl_ambi,
-                 weights = weight)
+mm_ambi_corr <- '
+# outcome model
+dv_eval ~ b1*corr + b2*demdef + b3*action + m1*dv_ambi
 
-cm.ambi.xmy <- lm(dv_eval ~ justification + dv_ambi + action + demdef,
-                  data = tbl_ambi,
-                  weights = weight)
+# mediator model
+dv_ambi ~ a1*corr
+'
 
-texreg(list(cm.ambi.xy, cm.ambi.xm, cm.ambi.xmy),
-       custom.header = list("Dependent Variable:" = 1:3),
-       custom.model.names = c("Democracy Evaluation", "Ambiguity", "Democracy Evaluation"),
-       label = "tab:ambi",
-       caption = "Ambiguity Mediation Models",
-       caption.above = TRUE)
+fit_mm_ambi_corr <- sem(mm_ambi_corr, 
+                        data = tbl_ambi)
 
-cm.ambi.cor <- mediation::mediate(cm.ambi.xm, cm.ambi.xmy,
-                                  treat = "justification",
-                                  treat.value = "corruption",
-                                  control.value = "none",
-                                  mediator = "dv_ambi")
+summary(fit_mm_ambi_corr,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
 
-summary(cm.ambi.cor)
+### Self-serving justification decreases ambiguity
+mm_ambi_self <- '
+# outcome model
+dv_eval ~ b1*self + b2*demdef + b3*action + m1*dv_ambi
 
-cm.ambi.sel <- mediation::mediate(cm.ambi.xm, cm.ambi.xmy,
-                                  treat = "justification",
-                                  treat.value = "self-serving",
-                                  control.value = "none",
-                                  mediator = "dv_ambi")
+# mediator model
+dv_ambi ~ a1*self
+'
 
-summary(cm.ambi.sel) 
-# To Do: output table
+fit_mm_ambi_self <- sem(mm_ambi_self, 
+                        data = tbl_ambi)
 
-### Credibility ----
+summary(fit_mm_ambi_self,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+##### Credibility --------------------------------------------------------------
 # these models are run without demdef as dv_cred was only shown when demdef == 1
 
+# data preparation
 tbl_cred <- demojudges |> 
   filter(dv_cred != "NA") |> 
   
   # reverse coding to match intuition: higher scores mean more credibility
-  mutate(dv_cred = case_when(
-    dv_cred == 1 ~ 6,
-    dv_cred == 2 ~ 5,
-    dv_cred == 3 ~ 4,
-    dv_cred == 4 ~ 3,
-    dv_cred == 5 ~ 2,
-    dv_cred == 6 ~ 1,
-  ))
+  mutate(
+    dv_cred = case_when(
+      dv_cred == 1 ~ 6,
+      dv_cred == 2 ~ 5,
+      dv_cred == 3 ~ 4,
+      dv_cred == 4 ~ 3,
+      dv_cred == 5 ~ 2,
+      dv_cred == 6 ~ 1),
+    
+    # create dummies
+    cred = case_when(
+      action == "judiciary" ~ 1,
+      TRUE ~ 0),
+    corr = case_when(
+      justification == "corruption" ~ 1,
+      TRUE ~ 0),
+    self = case_when(
+      justification == "self-serving" ~ 1,
+      TRUE ~ 0)) |> 
+  dplyr::select(dv_eval, cred, action, dv_cred, justification, corr, self, none)
 
-cm.cred.xy <- lm(dv_eval ~ justification + action,
-                 data = tbl_cred,
-                 weights = weight)
+### Self-interested defence decreases credibility
+mm_cred <- '
+# outcome model
+dv_eval ~ b1*cred + b2*corr + b3*self + m1*dv_cred
 
-cm.cred.xm <- lm(dv_cred ~ justification + action,
-                 data = tbl_cred, 
-                 weights = weight)
+# mediator model
+dv_cred ~ a1*cred
+'
 
-cm.cred.xmy <- lm(dv_eval ~ justification + dv_cred + action,
-                  data = tbl_cred,
-                  weights = weight)
+fit_mm_cred <- sem(mm_cred, data = tbl_cred)
 
-texreg(list(cm.cred.xy, cm.cred.xm, cm.cred.xmy),
-       custom.header = list("Dependent Variable:" = 1:3),
-       custom.model.names = c("Democracy Evaluation", "Credibility", "Democracy Evaluation"),
-       label = "tab:cred",
-       caption = "Credibility Mediation Models",
-       caption.above = TRUE)
+summary(fit_mm_cred,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
 
-cm.cred <- mediation::mediate(cm.cred.xm, cm.cred.xmy,
-                              treat = "action",
-                              treat.value = "judiciary",
-                              control.value = "media",
-                              mediator = "dv_cred")
+### Figure: Mediation scatter plots --------------------------------------------
+# Joep is not convinced
+ggplot(data = tbl_ambi,
+      aes(x = dv_ambi,
+          y = dv_eval)) +
+  geom_jitter(alpha = 0.5) +
+  facet_wrap(~ justification)
 
-summary(cm.cred)
-# To Do: output table
+ggplot(data = tbl_cred,
+       aes(x = dv_cred,
+           y = dv_eval)) +
+  geom_jitter(alpha = 0.5) +
+  facet_wrap(~ action)
 
-#####  Protest Effects ---------------------------------------------------------
+### Figure 4 in the paper is made with an external illustrator programme 
+### Its elements can be replicated within R with the following code
+
+library(lavaanPlot)
+
+# Panel A
+lavaanPlot(model = fit_mm_ambi_corr, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# Panel B
+lavaanPlot(model = fit_mm_ambi_self, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# Panel C
+lavaanPlot(model = fit_mm_cred, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+################################################################################
+##### PARTICIPATION          #####
+##################################
 
 ### some overall parameters
 # define all dvs
@@ -627,7 +807,7 @@ sm.protest <- map_df(protest.dvs, run_multiple_lm) |>
   mutate(dv = factor(dv, levels = c("dv_protest", "dv_protest_scaled", "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
                                     "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")))
 
-#### Table for Protest-dv ----
+#### Table: Participation DVs --------------------------------------------------
 protest.table <- sm.protest |> 
   mutate(sig = case_when(p.value < 0.05 ~ "*",
                          p.value < 0.01 ~ "**",
@@ -640,7 +820,6 @@ protest.table <- sm.protest |>
   pivot_wider(names_from = dv, values_from = stat) |> 
   t()
   
-
 # Table 
 kable(protest.table, 
       booktabs = TRUE, 
@@ -661,7 +840,7 @@ sm.scaled.protest <- sm.protest |>
     term == "demdefyes" ~ "H2: **Democratic defence hypothesis**  \n*Reference: no democratic defence*",
   ))
 
-### Figure 7 ----  
+### Figure: Participation DVs -------------------------------------------------- 
 # prepare data
 sm.protest.plot <- sm.protest |> 
   filter(term != "(Intercept)",
@@ -724,7 +903,7 @@ ggsave(filename  = "figures/simple-protest.png",
        dpi = 300,
        units = "cm")
 
-### Figure 8 ----
+### Figure: Participation DVs, scaled ------------------------------------------
 # plot parameters
 scaled.colours <- c("dv_protest_scaled" = "#d83790", 
                     "dv_protest_vote" = "#00577C", 
@@ -802,136 +981,4 @@ ggsave(filename  = "figures/simple-protest2.png",
        dpi = 300,
        units = "cm")
 
-##### KLAD NOT INCLUDED ---------------------
-### interaction models
-# just on the full protest battery
-
-# interaction credibility H3
-im.cred.protest <- lm(data = demojudges,
-                      weights = weight,
-                      dv_protest ~ action * demdef + justification + post_libdem_frelect) |> 
-  tidy(conf.int = TRUE) |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  mutate(model = "credibility")
-
-# interaction ambiguity H4
-im.ambi.protest <- lm(data = demojudges,
-                      weights = weight,
-                      dv_protest ~ action + demdef * justification + post_libdem_frelect) |> 
-  tidy(conf.int = TRUE) |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  mutate(model = "ambiguity")
-
-# threeway interaction H5
-im.tw.protest <- lm(data = demojudges,
-                    weights = weight,
-                    dv_protest ~ action  *demdef * justification + post_libdem_frelect) |> 
-  tidy(conf.int = TRUE) |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  mutate(model = "threeway")
-
-### Figure 9 ----
-# create plot data
-im.protest.plot <- bind_rows(im.cred.protest, im.ambi.protest, im.tw.protest)
-
-# plot parameters
-fig9_colours <- c("#26c0c7", "#5151d3", "#d83790")
-fig9_legend <- c("**Ambiguity** interactions", "**Credibility** interaction", "**Threeway** interaction")
-
-# plot
-#fig9 <- 
-ggplot(data = im.protest.plot,
-       aes(x = estimate,
-           y = reorder(term, desc(estimate)))) +
-  
-  # zero-line
-  geom_vline(xintercept = 0,
-             linetype = "dashed",
-             colour = "darkgrey") +
-  
-  # points, errorbars
-  geom_point(aes(colour = model,
-                 shape = model),
-             size = 3,
-             position = position_dodge(width = .5)) +
-  
-  geom_errorbarh(aes(xmin = conf.low,
-                     xmax = conf.high,
-                     colour = model,
-                     linetype = model),
-                 position = position_dodge(width = .5),
-                 height = 0,
-                 size = 0.6) +
-  
-  # theme
-  theme_classic() +
-  scale_colour_manual(values = fig9_colours,
-                      labels = fig9_legend) +
-  scale_shape_manual(values = c(15, 17, 19),
-                     labels = fig9_legend) +
-  scale_linetype_manual(values = c("dashed", "solid", "dotdash"),
-                        labels = fig9_legend) +
-  
-  # labels and legend
-  labs(x = NULL,
-       y = NULL,
-       title = NULL) +
-  theme(axis.text.y = ggtext::element_markdown(),
-        legend.text = ggtext::element_markdown(),
-        legend.title = element_blank(),
-        legend.position = "bottom",
-        legend.key.width = unit(1.5, "cm"),
-        legend.justification = c(1,0))
-
-# and save
-
-### interaction model
-# define new function to run multiple lm() for all protest items and the sum-index
-run_multiple_lm_interaction <- function(dv){
-  lm_formula <- as.formula(paste(dv, "~ action + demdef + justification + action * demdef"))
-  model <- lm(lm_formula, data = demojudges, weights = weight)
-  result <- tidy(model, conf.int = TRUE)
-  result$dv <- dv
-  return(result)
-}
-
-im.protest <- map_df(protest.dvs, run_multiple_lm_interaction) |> 
-  mutate(model = "interaction")
-
-# prepare data
-im.protest.plot <- bind_rows(sm.protest, im.protest) |>
-  filter( term != "(Intercept)") |> 
-  mutate(term = case_when(
-    term == "justificationself-serving" ~ "H1a: **Self-serving hypothesis**  \nJustification: self-serving  \n*Reference: no justification*",
-    term == "justificationcorruption" ~ "H1b: **Positive valence hypothesis**  \n*Reference: no justification*",
-    term == "actionjudiciary" ~ "Targeting the judiciary  \n*Reference: targeting the media*",
-    term == "demdefyes" ~ "H2: **Democratic defence hypothesis**  \n*Reference: no democratic defence*",
-    term == "actionjudiciary:demdefyes" ~ "H3: **Credibility hypothesis**  \nDemocratic defence * Action against judiciary",
-  ))
-
-# table
-sm.protest.1 <- sm.protest |> 
-  mutate(star = case_when(
-    p.value < 0.05 & p.value >= 0.01 ~ "*",
-    p.value < 0.01 & p.value >= 0.001 ~ "**",
-    p.value < 0.001 ~ "***"
-  )) |> 
-  dplyr::select(term, estimate, std.error, star, dv) |> 
-  mutate(estimate = round(estimate, 2),
-         std.error = round(std.error, 2))
-
-# table
-im.protest.1 <- im.protest |> 
-  mutate(star = case_when(
-    p.value < 0.05 & p.value >= 0.01 ~ "*",
-    p.value < 0.01 & p.value >= 0.001 ~ "**",
-    p.value < 0.001 ~ "***"
-  )) |> 
-  dplyr::select(term, estimate, std.error, star, dv) |> 
-  mutate(estimate = round(estimate, 2),
-         std.error = round(std.error, 2))
-
-
+# /./ End of Code /./ #

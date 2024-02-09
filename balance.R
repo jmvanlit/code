@@ -30,6 +30,7 @@ covs <-  demojudges |>
     weight
   )
 
+### Unweighted data ------------------------------------------------------------
 covs_unweighted <- covs
 
 balance_unweighted <- bal.tab(data = covs_unweighted,
@@ -57,10 +58,11 @@ balance_unweighted <- balance_unweighted$Balance |>
 kable(balance_unweighted, 
       booktabs = TRUE, 
       format = "latex",
-      caption = "Top-20 most unbalanced covariates for the unweighted",
+      caption = "Top-20 most unbalanced covariates for the unweighted data",
       label = "bal_unw",
       escape = TRUE)
 
+### Weighted data --------------------------------------------------------------
 covs_weighted <- covs |> 
   filter(!is.na(weight))
 

@@ -6,6 +6,11 @@ library (labelled) # to remove value labels to avoid warnings when merging
 ### Clean NL -------------------------------------------------------------------
 df_raw_nl <- read_sav("data/NL/NLOZ23-07-VENI updated labels and variables.sav")
 
+# More income-data was collected in a second survey in October
+more_income_nl <- read_sav("data/NL/NLOZ23-07-VENI + NLOZ23-10-VENI with income.sav") |> 
+  dplyr::select(Q38.income.category_Oktober, ResponseId) |> 
+  filter(!ResponseId == "")
+
 df_nl <- df_raw_nl |> 
   dplyr::select(
     
@@ -117,10 +122,18 @@ df_nl <- df_raw_nl |>
     emp_unemp = Q13.emp.status_9,
     emp_diff2 = Q13.emp.status_10,
     emp_opn = Q13.emp.status_10_TEXT
-  )
+  ) |> 
+  
+  # merge the extra income data
+  left_join(more_income_nl, by = c("ResponseId")) |> 
+  mutate(income_nl = case_when(
+    is.na(income_nl) ~ Q38.income.category_Oktober, # give precedence to the July-data if respondent answered both surveys
+    TRUE ~ income_nl)) |> 
+  dplyr::select(-Q38.income.category_Oktober)
 
 val_labels(df_nl) <- NULL
 rm(df_raw_nl)
+
 
 ### Clean DE -------------------------------------------------------------------
 df_raw_de <- read_sav("data/DE/DEOZ23-07_Veni.sav")
