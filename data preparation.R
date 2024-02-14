@@ -458,6 +458,59 @@ demojudges <- bind_rows(df_nl, df_fr, df_de) |>
   dplyr::select(-attention_1, -attention_2, -attention_3, -attention_4, -attention_5, -attention_6, -attention_7, -attention_8) |> 
   #dplyr::select(-dj_mc_1, -dj_mc_2, -dj_mc_3) |> 
   
+  # reverse credibility coding to match intuition: higher scores mean more credibility
+  mutate(
+    dv_cred = case_when(
+      dv_cred == 1 ~ 6,
+      dv_cred == 2 ~ 5,
+      dv_cred == 3 ~ 4,
+      dv_cred == 4 ~ 3,
+      dv_cred == 5 ~ 2,
+      dv_cred == 6 ~ 1)) |> 
+  
+  # reverse ambiguity coding to match intuition: higher scores mean more ambiguity
+  mutate(
+    dv_ambi = case_when(
+      dv_ambi == 1 ~ 6,
+      dv_ambi == 2 ~ 5,
+      dv_ambi == 3 ~ 4,
+      dv_ambi == 4 ~ 3,
+      dv_ambi == 5 ~ 2,
+      dv_ambi == 6 ~ 1)) |> 
+  
+  # clena up employment-variables
+  mutate(
+    emp_school = case_when(
+      is.na(emp_school) ~ 0,
+      TRUE ~ emp_school),
+    emp_student = case_when(
+      is.na(emp_student) ~ 0,
+      TRUE ~ emp_student),
+    emp_self = case_when(
+      is.na(emp_self) ~ 0,
+      TRUE ~ emp_self),
+    emp_full = case_when(
+      is.na(emp_full) ~ 0,
+      TRUE ~ emp_full),
+    emp_part = case_when(
+      is.na(emp_part) ~ 0,
+      TRUE ~ emp_part),
+    emp_diff = case_when(
+      is.na(emp_diff) ~ 0,
+      TRUE ~ emp_diff),
+    emp_parent = case_when(
+      is.na(emp_parent) ~ 0,
+      TRUE ~ emp_parent),
+    emp_pension = case_when(
+      is.na(emp_pension) ~ 0,
+      TRUE ~ emp_pension),
+    emp_unemp = case_when(
+      is.na(emp_unemp) ~ 0,
+      TRUE ~ emp_unemp),
+    emp_diff2 = case_when(
+      is.na(emp_diff2) ~ 0,
+      TRUE ~ emp_diff2)) |> 
+  
   # clean up all the missing
   filter(treatment_group != "") |> 
   mutate(pol_interest = ifelse(pol_interest == 99, NA, pol_interest),

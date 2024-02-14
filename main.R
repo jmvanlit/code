@@ -22,6 +22,7 @@ library(kableExtra)
 library(stringr)
 library(tidyr)
 library(lavaan)
+library(lavaanPlot)
 
 ##### Data import --------------------------------------------------------------
 demojudges <- read.csv("data/demojudges.csv") |> 
@@ -82,6 +83,8 @@ im.jd.eval <- lm(data = demojudges,
                    
                    # unbalanced covariates
                    post_libdem_frelect)
+
+im.jd.eval
 
 ##### Threeway Interaction H5 --------------------------------------------------
 im.tw.eval <- lm(data = demojudges,
@@ -429,7 +432,7 @@ arrows.im.judic <-
     action = c("judiciary")
   )
 
-#fig3 <- 
+fig3 <- 
 ggplot(data = tw.groups.plot,
        aes(x = justification,
            y = fitted_mean)) +
@@ -438,7 +441,7 @@ ggplot(data = tw.groups.plot,
   geom_errorbar(aes(ymin = fitted_low,
                     ymax = fitted_high,
                     colour = demdef),
-                size = 0.6,
+                linewidth = 0.6,
                 width = 0,
                 position = position_dodge(width = 0.5)) +
   
@@ -476,7 +479,7 @@ ggplot(data = tw.groups.plot,
                  xend = xend, 
                  yend = yend),
              arrow = arrow(length = unit(0.2, "cm")), 
-             size = 0.3,
+             linewidth = 0.3,
              color = "darkgrey") +
   
   geom_curve(data = arrows.im.judic, 
@@ -485,7 +488,7 @@ ggplot(data = tw.groups.plot,
                  xend = xend, 
                  yend = yend),
              arrow = arrow(length = unit(0.2, "cm")), 
-             size = 0.3,
+             linewidth = 0.3,
              color = "darkgrey",
              curvature = -0.5) +
   
@@ -564,8 +567,6 @@ threeway.plot <- model_threeway |>
       term == "group2" | term == "group5" | term == "group8"  ~ "None",
       term == "group3" | term == "group6" | term == "group9"  ~ "Self-serving"))
 
-threeway.plot
-
 # plot parameters
 tw.colours <- c("no" = "#5151d3",
                 "self-interested" = "#e68619",
@@ -576,7 +577,7 @@ tw.legend <- c("no" = "**No** democratic  \ndefence",
                "not-self" = "**Not-self-interested**  \ndemocratic defence")
 
 # plot ...
-#fig4 <- 
+fig4 <- 
 ggplot(data = threeway.plot,
        aes(x = justification,
            y = fitted_mean)) +
@@ -637,55 +638,106 @@ ggsave(filename  = "figures/threeway2.png",
 tbl_ambi <- demojudges |> 
   filter(dv_ambi != "NA") |> 
   
-  # reverse coding to match intuition: higher scores mean more ambiguity
+  # create dummies
   mutate(
-    dv_ambi = case_when(
-      dv_ambi == 1 ~ 6,
-      dv_ambi == 2 ~ 5,
-      dv_ambi == 3 ~ 4,
-      dv_ambi == 4 ~ 3,
-      dv_ambi == 5 ~ 2,
-      dv_ambi == 6 ~ 1),
-    
-    # create dummies
     corr = case_when(
       justification == "corruption" ~ 1,
       TRUE ~ 0),
     self = case_when(
       justification == "self-serving" ~ 1,
-      TRUE ~ 0))
+      TRUE ~ 0)) |> 
+  
+  # remove non-weighted observations
+  filter(!is.na(weight))
 
-### Positively valenced justification increases ambiguity
-
+### Positively valenced justification increases ambiguity ----------------------
 mm_ambi_corr <- '
 # outcome model
-dv_eval ~ b1*corr + b2*demdef + b3*action + m1*dv_ambi
+dv_eval ~ b1*corr + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
 
 # mediator model
 dv_ambi ~ a1*corr
 '
 
 fit_mm_ambi_corr <- sem(mm_ambi_corr, 
-                        data = tbl_ambi)
+                        data = tbl_ambi,
+                        estimator = "MLR",
+                        sampling.weights = "weight")
 
 summary(fit_mm_ambi_corr,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
-### Self-serving justification decreases ambiguity
+# Modifications check
+modificationindices(fit_mm_ambi_corr, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
+
+mm_ambi_corr_mod <- '
+# outcome model
+dv_eval ~ b1*corr + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*corr + a2*post_libdem_frelect
+'
+
+fit_mm_ambi_corr_mod <- sem(mm_ambi_corr_mod,
+                            data = tbl_ambi,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_ambi_corr_mod,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+### Self-serving justification decreases ambiguity -----------------------------
 mm_ambi_self <- '
 # outcome model
-dv_eval ~ b1*self + b2*demdef + b3*action + m1*dv_ambi
+dv_eval ~ b1*self + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
 
 # mediator model
 dv_ambi ~ a1*self
 '
 
 fit_mm_ambi_self <- sem(mm_ambi_self, 
-                        data = tbl_ambi)
+                        data = tbl_ambi,
+                        estimator = "MLR",
+                        sampling.weights = "weight")
 
 summary(fit_mm_ambi_self,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+# Modifications check
+modificationindices(fit_mm_ambi_self, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
+
+mm_ambi_self_mod <- '
+# outcome model
+dv_eval ~ b1*self + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*self + a2*post_libdem_frelect
+'
+
+fit_mm_ambi_corr_mod <- sem(mm_ambi_self_mod,
+                            data = tbl_ambi,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_ambi_corr_mod,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
@@ -697,18 +749,9 @@ summary(fit_mm_ambi_self,
 tbl_cred <- demojudges |> 
   filter(dv_cred != "NA") |> 
   
-  # reverse coding to match intuition: higher scores mean more credibility
+  # create dummies
   mutate(
-    dv_cred = case_when(
-      dv_cred == 1 ~ 6,
-      dv_cred == 2 ~ 5,
-      dv_cred == 3 ~ 4,
-      dv_cred == 4 ~ 3,
-      dv_cred == 5 ~ 2,
-      dv_cred == 6 ~ 1),
-    
-    # create dummies
-    cred = case_when(
+    selfinterest = case_when(
       action == "judiciary" ~ 1,
       TRUE ~ 0),
     corr = case_when(
@@ -717,42 +760,58 @@ tbl_cred <- demojudges |>
     self = case_when(
       justification == "self-serving" ~ 1,
       TRUE ~ 0)) |> 
-  dplyr::select(dv_eval, cred, action, dv_cred, justification, corr, self, none)
-
+  
+  # remove non-weighted observations
+  filter(!is.na(weight))
+  
 ### Self-interested defence decreases credibility
 mm_cred <- '
 # outcome model
-dv_eval ~ b1*cred + b2*corr + b3*self + m1*dv_cred
+dv_eval ~ b1*selfinterest + b2*corr + b3*self + b4*post_libdem_frelect + m1*dv_cred
 
 # mediator model
-dv_cred ~ a1*cred
+dv_cred ~ a1*selfinterest
 '
 
-fit_mm_cred <- sem(mm_cred, data = tbl_cred)
+fit_mm_cred <- sem(mm_cred, 
+                   data = tbl_cred,
+                   estimator = "MLR",
+                   sampling.weights = "weight")
 
 summary(fit_mm_cred,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
-### Figure: Mediation scatter plots --------------------------------------------
-# Joep is not convinced
-ggplot(data = tbl_ambi,
-      aes(x = dv_ambi,
-          y = dv_eval)) +
-  geom_jitter(alpha = 0.5) +
-  facet_wrap(~ justification)
+# Modifications check
+modificationindices(fit_mm_cred, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
 
-ggplot(data = tbl_cred,
-       aes(x = dv_cred,
-           y = dv_eval)) +
-  geom_jitter(alpha = 0.5) +
-  facet_wrap(~ action)
+fit_mm_cred_mod <- '
+# outcome model
+dv_eval ~ b1*selfinterest + b2*corr + b3*self + b4*post_libdem_frelect + m1*dv_ambi
 
-### Figure 4 in the paper is made with an external illustrator programme 
+# mediator model
+dv_ambi ~ a1*self + a2*post_libdem_frelect
+'
+
+fit_mm_cred_corr_mod <- sem(fit_mm_cred_mod,
+                            data = tbl_cred,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_cred_corr_mod,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+### Figure 4 in the paper is made with an external illustrator programme -------
 ### Its elements can be replicated within R with the following code
-
-library(lavaanPlot)
 
 # Panel A
 lavaanPlot(model = fit_mm_ambi_corr, 
@@ -771,6 +830,38 @@ lavaanPlot(model = fit_mm_cred,
            coefs = TRUE,
            sig = 0.05,
            stars = "regress")
+
+### Figure: Mediation scatter plots --------------------------------------------
+# Joep is not convinced
+justification_fig <- 
+  ggplot(data = tbl_ambi,
+         aes(x = dv_ambi,
+             y = dv_eval)) +
+  geom_jitter(alpha = 0.5) +
+  facet_wrap(~ justification)
+
+# ... and save!
+ggsave(filename  = "figures/justification_fig.png",
+       plot = justification_fig,
+       width = 13,
+       height = 10,
+       dpi = 300,
+       units = "cm")
+
+demdem_fig <- 
+  ggplot(data = tbl_cred,
+         aes(x = dv_cred,
+             y = dv_eval)) +
+  geom_jitter(alpha = 0.5) +
+  facet_wrap(~ action)
+
+# ... and save!
+ggsave(filename  = "figures/demdem_fig.png",
+       plot = demdem_fig,
+       width = 13,
+       height = 10,
+       dpi = 300,
+       units = "cm")
 
 ################################################################################
 ##### PARTICIPATION          #####
@@ -824,7 +915,7 @@ protest.table <- sm.protest |>
 kable(protest.table, 
       booktabs = TRUE, 
       format = "latex",
-      caption = "Does Democratic Defence Cue Political Participation?",
+      caption = "Does Democratic Defence Result in Political Participation?",
       label = "protest",
       escape = TRUE)
 
@@ -896,7 +987,7 @@ fig7 <-
         legend.justification = c(1,0))
 
 # and save!
-ggsave(filename  = "figures/simple-protest.png",
+ggsave(filename  = "figures/participation.png",
        plot = fig7,
        width = 18,
        height = 10,
@@ -974,7 +1065,7 @@ fig8 <-
         legend.justification = c(1,0))
 
 # and save!
-ggsave(filename  = "figures/simple-protest2.png",
+ggsave(filename  = "figures/participation-rescaled.png",
        plot = fig8,
        width = 18,
        height = 10,

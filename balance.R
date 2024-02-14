@@ -51,16 +51,16 @@ balance_unweighted <- balance_unweighted$Balance |>
          balance = R.Threshold.Un) |> 
   mutate(correlation = round(correlation, 3)) |> 
   arrange(desc(abs(correlation))) |> 
-  top_n(n = 20,
+  top_n(n = 10,
         wt = abs(correlation))
 
 # Table 
-kable(balance_unweighted, 
+kable(balance_unweighted,
+      escape = TRUE,
       booktabs = TRUE, 
       format = "latex",
-      caption = "Top-20 most unbalanced covariates for the unweighted data",
-      label = "bal_unw",
-      escape = TRUE)
+      caption = "Top-10 most unbalanced covariates for the unweighted data",
+      label = "bal_unw")
 
 ### Weighted data --------------------------------------------------------------
 covs_weighted <- covs |> 
@@ -85,13 +85,13 @@ balance_weighted <- balance_weighted$Balance |>
          balance = R.Threshold) |> 
   mutate(correlation = round(correlation, 3)) |> 
   arrange(desc(abs(correlation))) |> 
-  top_n(n = 20,
+  top_n(n = 10,
         wt = abs(correlation))
 
 # Table 
 kable(balance_weighted, 
       booktabs = TRUE, 
       format = "latex",
-      caption = "Top-20 most unbalanced covariates for the weighted data",
+      caption = "Top-10 most unbalanced covariates for the weighted data",
       label = "bal_w",
       escape = TRUE)

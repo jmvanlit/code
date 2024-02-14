@@ -28,7 +28,7 @@ demojudges$justification <- relevel(demojudges$justification, ref = "none")
 demojudges$action <- relevel(demojudges$action, ref = "media")
 demojudges$demdef <- relevel(demojudges$demdef, ref = "no")
 
-##### Hypothesis testing according to PAP
+##### Hypotheses H3 and H4 testing according to PAP ----------------------------
 im.pap.eval <- lm(data = demojudges,
                   weights = weight,
                  
@@ -37,13 +37,18 @@ im.pap.eval <- lm(data = demojudges,
                     justification + action + demdef + (action * demdef) + (demdef * justification) +
                     
                     # unbalanced covariates
-                    # income_nl left out for now as it is very incomplete and skews the analysis heavily
                     post_libdem_frelect)
 
 texreg(im.pap.eval,
-       caption = "Alternative Model Specification for H3 and H4",
+       caption = "Model Specification for H3 and H4 according to PAP",
        caption.above = TRUE,
-       label = "tab:pap-h3-h4")
+       label = "tab:pap-h3-h4",
+       custom.coef.names = c("Intercept","Justification: Corruption","Justification: Self-serving",
+                             "Action: Judiciary", "Democratic Defence: present", 
+                             "Importance of Free and Fair Elections (unbalanced covariate)",
+                             "Judiciary * Democratic Defence", "Corruption * Democratic Defence",
+                             "Self-serving * Democratic Defence"),
+       custom.model.names = c("Model 2 and 3 combined"))
 
 ##### Manipulation and Attention Checks ----------------------------------------
 att <- demojudges |> 
@@ -174,7 +179,7 @@ m.man.none <- lm(none ~ mc_none,
                  data = attention,
                  weights = weight)
 
-m.man <- list(m.att.demdef, m.att.action, m.att.corruption, m.att.selfserving, m.att.none)
+m.man <- list(m.man.demdef, m.man.action, m.man.corruption, m.man.selfserving, m.man.none)
 
 texreg(m.man,
        caption = "Manipulation Checks",
@@ -381,7 +386,44 @@ models_eval_inc <- list(sm.eval.inc, sm.eval.coa, sm.eval.coa.fr)
 texreg(models_eval_inc,
        caption = "Does democratic defence matter (with incumbency effects)?",
        caption.above = TRUE,
-       label = "tab:inc")
+       label = "tab:inc",
+       custom.model.names = c("Vote on election winner", "Vote on coalition member (excluding France)",
+                              "Vote on coalition member (including France)"))
+
+##### Party Choice -------------------------------------------------------------
+# H1a, H1b, H2
+sm.eval.vote <- lm(dv_eval ~ justification + action + demdef +
+                      post_libdem_frelect + vote,
+                    data = demojudges,
+                    weights = weight) 
+
+# H3
+im.eval.ad.vote <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
+                         post_libdem_frelect + vote,
+                       data = demojudges,
+                       weights = weight)
+
+# H4
+im.eval.jd.vote <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
+                          post_libdem_frelect + vote,
+                        data = demojudges,
+                        weights = weight)
+
+# H5
+im.eval.tw.vote <- lm(dv_eval ~ justification + action + demdef + 
+                         (justification * demdef) + (action * demdef) + (justification * action) +
+                         (justification * action * demdef) +
+                         post_libdem_frelect + vote,
+                       data = demojudges,
+                       weights = weight)
+
+models_eval_vote <- list(sm.eval.vote, im.eval.ad.vote, im.eval.jd.vote, im.eval.tw.vote)
+
+texreg(models_eval_vote,
+       caption = "Does democratic defence matter (if we control for previous vote)?",
+       caption.above = TRUE,
+       label = "tab:vote",
+       longtable = TRUE)
 
 ##### Democracy Attitudes ------------------------------------------------------
 # H1a, H1b, H2
@@ -542,95 +584,7 @@ texreg(unw_models,
        caption.above = TRUE,
        label = "tab:unwmodels")
 
-# Mediation ----
-### Ambiguity ----
-tbl_ambi.unw <- demojudges |> 
-  filter(dv_ambi != "NA") |> 
-  
-  # reverse coding to match intuition: higher scores mean more ambiguity
-  mutate(dv_ambi = case_when(
-    dv_ambi == 1 ~ 6,
-    dv_ambi == 2 ~ 5,
-    dv_ambi == 3 ~ 4,
-    dv_ambi == 4 ~ 3,
-    dv_ambi == 5 ~ 2,
-    dv_ambi == 6 ~ 1,
-  ))
-
-cm.ambi.xy.unw <- lm(dv_eval ~ justification + action + demdef,
-                 data = tbl_ambi.unw)
-
-cm.ambi.xm.unw <- lm(dv_ambi ~ justification + action + demdef,
-                 data = tbl_ambi.unw)
-
-cm.ambi.xmy.unw <- lm(dv_eval ~ justification + dv_ambi + action + demdef,
-                  data = tbl_ambi.unw)
-
-texreg(list(cm.ambi.xy.unw, cm.ambi.xm.unw, cm.ambi.xmy.unw),
-       custom.header = list("Dependent Variable:" = 1:3),
-       custom.model.names = c("Democracy Evaluation", "Ambiguity", "Democracy Evaluation"),
-       label = "tab:ambi-unweighted",
-       caption = "Ambiguity Mediation Models (Unweighted Data)",
-       caption.above = TRUE)
-
-cm.ambi.cor.unw <- mediation::mediate(cm.ambi.xm.unw, cm.ambi.xmy.unw,
-                                  treat = "justification",
-                                  treat.value = "corruption",
-                                  control.value = "none",
-                                  mediator = "dv_ambi")
-
-summary(cm.ambi.cor.unw)
-
-cm.ambi.sel.unw <- mediation::mediate(cm.ambi.xm.unw, cm.ambi.xmy.unw,
-                                  treat = "justification",
-                                  treat.value = "self-serving",
-                                  control.value = "none",
-                                  mediator = "dv_ambi")
-
-summary(cm.ambi.sel.unw) 
-
-
-### Credibility ----
-# these models are run without demdef as dv_cred was only shown when demdef == 1
-
-tbl_cred.unw <- demojudges |> 
-  filter(dv_cred != "NA") |> 
-  
-  # reverse coding to match intuition: higher scores mean more credibility
-  mutate(dv_cred = case_when(
-    dv_cred == 1 ~ 6,
-    dv_cred == 2 ~ 5,
-    dv_cred == 3 ~ 4,
-    dv_cred == 4 ~ 3,
-    dv_cred == 5 ~ 2,
-    dv_cred == 6 ~ 1,
-  ))
-
-cm.cred.xy.unw <- lm(dv_eval ~ justification + action,
-                 data = tbl_cred.unw)
-
-cm.cred.xm.unw <- lm(dv_cred ~ justification + action,
-                 data = tbl_cred.unw)
-
-cm.cred.xmy.unw <- lm(dv_eval ~ justification + dv_cred + action,
-                  data = tbl_cred.unw)
-
-texreg(list(cm.cred.xy.unw, cm.cred.xm.unw, cm.cred.xmy.unw),
-       custom.header = list("Dependent Variable:" = 1:3),
-       custom.model.names = c("Democracy Evaluation", "Credibility", "Democracy Evaluation"),
-       label = "tab:cred_unweighted",
-       caption = "Credibility Mediation Models (Unweighted Data)",
-       caption.above = TRUE)
-
-cm.cred.unw <- mediation::mediate(cm.cred.xm.unw, cm.cred.xmy.unw,
-                              treat = "action",
-                              treat.value = "judiciary",
-                              control.value = "media",
-                              mediator = "dv_cred")
-
-summary(cm.cred.unw)
-
-# protest ----
+# Political participation ------------------------------------------------------
 # define new function to run multiple lm() for all protest items and the sum-index
 run_multiple_lm_unw <- function(dv){
   lm_formula <- as.formula(paste(dv, "~ action + demdef + justification"))
@@ -667,8 +621,139 @@ protest.table.unw <- sm.protest.unw |>
 kable(protest.table.unw, 
       booktabs = TRUE, 
       format = "latex",
-      caption = "Does Democratic Defence Cue Political Participation? (Unweighted Data)",
+      caption = "Does Democratic Defence Result in Political Participation? (Unweighted Data)",
       label = "protest_unw",
       escape = TRUE)
 
-# /./ End of Code /./
+################################################################################
+##### MEDIATION              #####
+##################################
+
+##### Ambiguity ----------------------------------------------------------------
+
+# data preparation
+tbl_ambi_unw <- demojudges |> 
+  filter(dv_ambi != "NA") |> 
+  
+  # reverse coding to match intuition: higher scores mean more ambiguity
+  mutate(
+    dv_ambi = case_when(
+      dv_ambi == 1 ~ 6,
+      dv_ambi == 2 ~ 5,
+      dv_ambi == 3 ~ 4,
+      dv_ambi == 4 ~ 3,
+      dv_ambi == 5 ~ 2,
+      dv_ambi == 6 ~ 1),
+    
+    # create dummies
+    corr = case_when(
+      justification == "corruption" ~ 1,
+      TRUE ~ 0),
+    self = case_when(
+      justification == "self-serving" ~ 1,
+      TRUE ~ 0))
+
+### Positively valenced justification increases ambiguity ----------------------
+mm_ambi_corr_unw <- '
+# outcome model
+dv_eval ~ b1*corr + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*corr
+'
+
+fit_mm_ambi_corr_unw <- sem(mm_ambi_corr_unw, 
+                        data = tbl_ambi_unw,
+                        estimator = "MLR")
+
+summary(fit_mm_ambi_corr_unw,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+### Self-serving justification decreases ambiguity -----------------------------
+mm_ambi_self_unw <- '
+# outcome model
+dv_eval ~ b1*self + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*self
+'
+
+fit_mm_ambi_self_unw <- sem(mm_ambi_self_unw, 
+                        data = tbl_ambi_unw,
+                        estimator = "MLR")
+
+summary(fit_mm_ambi_self_unw,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+##### Credibility --------------------------------------------------------------
+# these models are run without demdef as dv_cred was only shown when demdef == 1
+
+# data preparation
+tbl_cred_unw <- demojudges |> 
+  filter(dv_cred != "NA") |> 
+  
+  # reverse coding to match intuition: higher scores mean more credibility
+  mutate(
+    dv_cred = case_when(
+      dv_cred == 1 ~ 6,
+      dv_cred == 2 ~ 5,
+      dv_cred == 3 ~ 4,
+      dv_cred == 4 ~ 3,
+      dv_cred == 5 ~ 2,
+      dv_cred == 6 ~ 1),
+    
+    # create dummies
+    selfinterest = case_when(
+      action == "judiciary" ~ 1,
+      TRUE ~ 0),
+    corr = case_when(
+      justification == "corruption" ~ 1,
+      TRUE ~ 0),
+    self = case_when(
+      justification == "self-serving" ~ 1,
+      TRUE ~ 0)) |> 
+  
+  # remove non-weighted observations
+  filter(!is.na(weight))
+
+### Self-interested defence decreases credibility
+mm_cred_unw <- '
+# outcome model
+dv_eval ~ b1*selfinterest + b2*corr + b3*self + b4*post_libdem_frelect + m1*dv_cred
+
+# mediator model
+dv_cred ~ a1*selfinterest
+'
+
+fit_mm_cred_unw <- sem(mm_cred, 
+                   data = tbl_cred_unw,
+                   estimator = "MLR")
+
+summary(fit_mm_cred_unw,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+# Panel A
+lavaanPlot(model = fit_mm_ambi_corr_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# Panel B
+lavaanPlot(model = fit_mm_ambi_self_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# Panel C
+lavaanPlot(model = fit_mm_cred_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+tar# /./ End of Code /./
