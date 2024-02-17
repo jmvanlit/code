@@ -28,6 +28,10 @@ demojudges$justification <- relevel(demojudges$justification, ref = "none")
 demojudges$action <- relevel(demojudges$action, ref = "media")
 demojudges$demdef <- relevel(demojudges$demdef, ref = "no")
 
+################################################################################
+##### ON THE MAIN ANALYSIS   #####
+##################################
+
 ##### Hypotheses H3 and H4 testing according to PAP ----------------------------
 im.pap.eval <- lm(data = demojudges,
                   weights = weight,
@@ -49,6 +53,180 @@ texreg(im.pap.eval,
                              "Judiciary * Democratic Defence", "Corruption * Democratic Defence",
                              "Self-serving * Democratic Defence"),
        custom.model.names = c("Model 2 and 3 combined"))
+
+#### Modifications checks for the mediation models -----------------------------
+
+# Ambiguity: corruption
+modificationindices(fit_mm_ambi_corr, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
+
+mm_ambi_corr_mod <- '
+# outcome model
+dv_eval ~ b1*corr + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*corr + a2*post_libdem_frelect
+'
+
+fit_mm_ambi_corr_mod <- sem(mm_ambi_corr_mod,
+                            data = tbl_ambi,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_ambi_corr_mod,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+# Ambiguity: self-serving
+modificationindices(fit_mm_ambi_self, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
+
+mm_ambi_self_mod <- '
+# outcome model
+dv_eval ~ b1*self + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+
+# mediator model
+dv_ambi ~ a1*self + a2*post_libdem_frelect
+'
+
+fit_mm_ambi_corr_mod <- sem(mm_ambi_self_mod,
+                            data = tbl_ambi,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_ambi_corr_mod,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+# Credibility
+modificationindices(fit_mm_cred, 
+                    standardized = TRUE, 
+                    power = TRUE, 
+                    delta = 0.1, 
+                    alpha = 0.05, 
+                    high.power = 0.75, 
+                    sort. = TRUE)
+
+fit_mm_cred_mod <- '
+# outcome model
+dv_eval ~ b1*selfinterest + b2*corr + b3*self + b4*post_libdem_frelect + m1*dv_cred
+
+# mediator model
+dv_cred ~ a1*selfinterest + a2*post_libdem_frelect
+'
+
+fit_mm_cred_corr_mod <- sem(fit_mm_cred_mod,
+                            data = tbl_cred,
+                            estimator = "MLR",
+                            sampling.weights = "weight")
+
+summary(fit_mm_cred_corr_mod,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+##### Alternative Visualization for the Participation Battery ------------------
+
+# create a scaled protest battery for appendix figure to more easily compare effect sized
+sm.scaled.protest <- sm.protest |> 
+  filter(dv != "dv_protest") |> 
+  filter(term != "(Intercept)",
+         term != "post_libdem_frelect") |> 
+  dplyr::mutate(term = case_when(
+    term == "justificationself-serving" ~ "H1a: **Self-serving hypothesis**  \nJustification: self-serving  \n*Reference: no justification*",
+    term == "justificationcorruption" ~ "H1b: **Positive valence hypothesis**  \n*Reference: no justification*",
+    term == "actionjudiciary" ~ "Targeting the judiciary  \n*Reference: targeting the media*",
+    term == "demdefyes" ~ "H2: **Democratic defence hypothesis**  \n*Reference: no democratic defence*",
+  ))
+
+# plot parameters
+scaled.colours <- c("dv_protest_scaled" = "#d83790", 
+                    "dv_protest_vote" = "#00577C", 
+                    "dv_protest_poster" = "#4D8F8D", 
+                    "dv_protest_pers" = "#4C716E",
+                    "dv_protest_peti" = "#6884C1",
+                    "dv_protest_lawpr" = "#719FCE", 
+                    "dv_protest_cont" = "#3A3D7E", 
+                    "dv_protest_unlaw" = "#586174")
+
+scaled.legend <- c("dv_protest_scaled" = "**Scaled participation battery**", 
+                   "dv_protest_vote" = "Vote", 
+                   "dv_protest_poster" = "Poster", 
+                   "dv_protest_pers" = "Persuade",
+                   "dv_protest_peti" = "Petition",
+                   "dv_protest_lawpr" = "Lawful protest", 
+                   "dv_protest_cont" = "Contact", 
+                   "dv_protest_unlaw" = "Unlawful protest")
+# plot
+participation_scaled <- 
+  ggplot(data = sm.scaled.protest,
+         aes(x = estimate,
+             y = reorder(term, desc(term)))) +
+  
+  # zero-line
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             colour = "darkgrey") +
+  
+  # points, errorbars
+  geom_point(aes(colour = dv,
+                 shape = dv),
+             size = 3,
+             position = position_dodge(width = .5)) +
+  
+  geom_errorbarh(aes(xmin = conf.low,
+                     xmax = conf.high,
+                     colour = dv),
+                 position = position_dodge(width = .5),
+                 height = 0,
+                 size = 0.6) +
+  
+  # theme
+  theme_classic() +
+  facet_wrap(~ dv, 
+             ncol = 4,
+             labeller = as_labeller(c(dv_protest_scaled = "**Scaled battery**",
+                                      dv_protest_vote = "Vote",
+                                      dv_protest_poster = "Poster",
+                                      dv_protest_pers= "Persuade",
+                                      dv_protest_peti = "Petition",
+                                      dv_protest_lawpr = "Lawful protest",
+                                      dv_protest_cont = "Contact", 
+                                      dv_protest_unlaw = "Unlawful protest"))) +
+  scale_colour_manual(values = scaled.colours) +
+  scale_shape_manual(values = c(15, 1, 2, 5, 6, 7, 9, 13)) +
+  
+  # labels and legends
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  theme(axis.text.y = ggtext::element_markdown(),
+        legend.text = ggtext::element_markdown(),
+        strip.text.x = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "none",
+        legend.key.width = unit(1.5, "cm"),
+        legend.justification = c(1,0))
+
+# and save!
+ggsave(filename  = "figures/participation-scaled.png",
+       plot = participation_scaled,
+       width = 18,
+       height = 10,
+       dpi = 300,
+       units = "cm")
 
 ##### Manipulation and Attention Checks ----------------------------------------
 att <- demojudges |> 
@@ -219,6 +397,10 @@ texreg(att.models,
        caption.above = TRUE,
        label = "tab:att")
 
+################################################################################
+##### COMPETING EXPLANATIONS #####
+##################################
+
 ##### Alternative dependent variable: dv_agree ---------------------------------
 # H1a, H1b, H2
 sm.agree <- lm(post_agree ~ justification + action + demdef + post_libdem_frelect,
@@ -279,11 +461,8 @@ texreg(models_cntrl_agree,
        caption.above = TRUE,
        label = "tab:agree.cntrl")
 
-# mediation effects
-
 ##### Country Effects ----------------------------------------------------------
 
-### Overall ----
 # H1a, H1b, H2
 sm.eval.cntry <- lm(dv_eval ~ justification + action + demdef +
                  country + post_libdem_frelect,
@@ -348,7 +527,6 @@ texreg(models_eval_splitcntry,
        caption.above = TRUE,
        label = "tab:splitcntry",
        custom.model.names = c("Netherlands", "France", "Germany"))
-
 
 ##### Incumbent Effects --------------------------------------------------------
 incumbency <- demojudges |> 
@@ -548,8 +726,13 @@ texreg(models_eval_rile,
        caption.above = TRUE,
        label = "tab:resp")
 
-##### Unweighted ---------------------------------------------------------------
+################################################################################
+##### UNWEIGHTED DATA        #####
+##################################
 
+# as there are no unbalanced covariates in the unweighted data, post_libdem_frelect is not included
+
+##### Main analysis ------------------------------------------------------------
 sm.eval.unw <- lm(data = demojudges,
               
               dv_eval ~ 
@@ -584,7 +767,8 @@ texreg(unw_models,
        caption.above = TRUE,
        label = "tab:unwmodels")
 
-# Political participation ------------------------------------------------------
+##### Political participation --------------------------------------------------
+
 # define new function to run multiple lm() for all protest items and the sum-index
 run_multiple_lm_unw <- function(dv){
   lm_formula <- as.formula(paste(dv, "~ action + demdef + justification"))
@@ -611,11 +795,9 @@ protest.table.unw <- sm.protest.unw |>
                          p.value < 0.001 ~ "***",
                          TRUE ~ ""),
          stat = str_c(round(estimate, 2), " (", round(std.error,2 ), ")", sig)) |> 
-  filter(term != "post_libdem_frelect") |> 
   dplyr::select(term, dv, stat) |> 
   pivot_wider(names_from = dv, values_from = stat) |> 
   t()
-
 
 # Table 
 kable(protest.table.unw, 
@@ -629,131 +811,146 @@ kable(protest.table.unw,
 ##### MEDIATION              #####
 ##################################
 
-##### Ambiguity ----------------------------------------------------------------
-
 # data preparation
-tbl_ambi_unw <- demojudges |> 
-  filter(dv_ambi != "NA") |> 
-  
-  # reverse coding to match intuition: higher scores mean more ambiguity
+tbl_mediation_unw <- demojudges |> 
   mutate(
-    dv_ambi = case_when(
-      dv_ambi == 1 ~ 6,
-      dv_ambi == 2 ~ 5,
-      dv_ambi == 3 ~ 4,
-      dv_ambi == 4 ~ 3,
-      dv_ambi == 5 ~ 2,
-      dv_ambi == 6 ~ 1),
-    
-    # create dummies
     corr = case_when(
       justification == "corruption" ~ 1,
       TRUE ~ 0),
     self = case_when(
       justification == "self-serving" ~ 1,
+      TRUE ~ 0),
+    demdef = case_when(
+      demdef == "yes" ~ 1,
+      TRUE ~ 0),
+    judiciary = case_when(
+      action == "judiciary" ~ 1,
       TRUE ~ 0))
+
+##### Ambiguity ----------------------------------------------------------------
+
+# data preparation
+tbl_ambi_unw <- tbl_mediation_unw |> 
+  filter(!is.na(dv_ambi))
 
 ### Positively valenced justification increases ambiguity ----------------------
 mm_ambi_corr_unw <- '
 # outcome model
-dv_eval ~ b1*corr + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+dv_eval ~ b1*corr + b2*demdef + b3*judiciary + m1*dv_ambi
 
 # mediator model
 dv_ambi ~ a1*corr
 '
 
-fit_mm_ambi_corr_unw <- sem(mm_ambi_corr_unw, 
-                        data = tbl_ambi_unw,
-                        estimator = "MLR")
+fit_mm_ambi_corr_unw <- sem(mm_ambi_corr_unw,
+                            data = tbl_ambi_unw,
+                            estimator = "WLSMV")
 
 summary(fit_mm_ambi_corr_unw,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
+lavaanPlot(model = fit_mm_ambi_corr_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# MLR estimator
+fit_mm_ambi_corr_unw_mlr <- sem(mm_ambi_corr_unw,
+                            data = tbl_ambi_unw,
+                            estimator = "MLR")
+
+summary(fit_mm_ambi_corr_unw_mlr,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+lavaanPlot(model = fit_mm_ambi_corr_unw_mlr, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
 ### Self-serving justification decreases ambiguity -----------------------------
 mm_ambi_self_unw <- '
 # outcome model
-dv_eval ~ b1*self + b2*demdef + b3*action + b4*post_libdem_frelect + m1*dv_ambi
+dv_eval ~ b1*self + b2*demdef + b3*judiciary + m1*dv_ambi
 
 # mediator model
 dv_ambi ~ a1*self
 '
 
 fit_mm_ambi_self_unw <- sem(mm_ambi_self_unw, 
-                        data = tbl_ambi_unw,
-                        estimator = "MLR")
+                            data = tbl_ambi_unw,
+                            estimator = "WLSMV")
 
 summary(fit_mm_ambi_self_unw,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
+lavaanPlot(model = fit_mm_ambi_self_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# MLR estimator
+fit_mm_ambi_self_unw_mlr <- sem(mm_ambi_self_unw, 
+                            data = tbl_ambi_unw,
+                            estimator = "MLR")
+
+summary(fit_mm_ambi_self_unw_mlr,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+lavaanPlot(model = fit_mm_ambi_self_unw_mlr, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
 ##### Credibility --------------------------------------------------------------
 # these models are run without demdef as dv_cred was only shown when demdef == 1
 
 # data preparation
-tbl_cred_unw <- demojudges |> 
-  filter(dv_cred != "NA") |> 
-  
-  # reverse coding to match intuition: higher scores mean more credibility
-  mutate(
-    dv_cred = case_when(
-      dv_cred == 1 ~ 6,
-      dv_cred == 2 ~ 5,
-      dv_cred == 3 ~ 4,
-      dv_cred == 4 ~ 3,
-      dv_cred == 5 ~ 2,
-      dv_cred == 6 ~ 1),
-    
-    # create dummies
-    selfinterest = case_when(
-      action == "judiciary" ~ 1,
-      TRUE ~ 0),
-    corr = case_when(
-      justification == "corruption" ~ 1,
-      TRUE ~ 0),
-    self = case_when(
-      justification == "self-serving" ~ 1,
-      TRUE ~ 0)) |> 
-  
-  # remove non-weighted observations
-  filter(!is.na(weight))
+tbl_cred_unw <- tbl_mediation_unw |> 
+  filter(!is.na(dv_cred))
 
-### Self-interested defence decreases credibility
 mm_cred_unw <- '
 # outcome model
-dv_eval ~ b1*selfinterest + b2*corr + b3*self + b4*post_libdem_frelect + m1*dv_cred
+dv_eval ~ b1*judiciary + b2*corr + b3*self + m1*dv_cred
 
 # mediator model
-dv_cred ~ a1*selfinterest
+dv_cred ~ a1*judiciary
 '
 
-fit_mm_cred_unw <- sem(mm_cred, 
+fit_mm_cred_unw <- sem(mm_cred_unw, 
                    data = tbl_cred_unw,
-                   estimator = "MLR")
+                   estimator = "WLSMV")
 
 summary(fit_mm_cred_unw,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
-# Panel A
-lavaanPlot(model = fit_mm_ambi_corr_unw, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
-
-# Panel B
-lavaanPlot(model = fit_mm_ambi_self_unw, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
-
-# Panel C
 lavaanPlot(model = fit_mm_cred_unw, 
            coefs = TRUE,
            sig = 0.05,
            stars = "regress")
 
-tar# /./ End of Code /./
+# MLR estimator
+fit_mm_cred_unw_mlr <- sem(mm_cred_unw, 
+                       data = tbl_cred_unw,
+                       estimator = "MLR")
+
+summary(fit_mm_cred_unw_mlr,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+lavaanPlot(model = fit_mm_cred_unw_mlr, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# /./ End of Code /./

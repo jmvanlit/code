@@ -232,14 +232,22 @@ kable(geo_fr_freq,
       booktabs = TRUE)
 
 # country
+country_weighted_n <- demojudges |> 
+  filter(!is.na(weight)) |> 
+  group_by(country) |> 
+  summarise(count_w = n()) 
+
 country_freq <- demojudges |> 
   group_by(country) |> 
-  summarise(count = n()) |> 
-  mutate(perc = round(count / sum(count) * 100, 2),
-         perc = paste0(perc, "%"))
+  summarise(count = n())|> 
+  left_join(country_weighted_n, by = c("country")) |> 
+  mutate(country = case_when(
+    country == "DE" ~ "Germany",
+    country == "FR" ~ "France",
+    country == "NL" ~ "Netherlands"))
 
 kable(country_freq,
-      col.names = c("Country", "Count", "Percentage"),
+      col.names = c("Country", "Count (unweighted)", "Count (weighted)"),
       caption = "Descriptives: Respondents per country",
       label = "desc-country",
       format = "latex",

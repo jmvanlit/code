@@ -134,7 +134,6 @@ df_nl <- df_raw_nl |>
 val_labels(df_nl) <- NULL
 rm(df_raw_nl)
 
-
 ### Clean DE -------------------------------------------------------------------
 df_raw_de <- read_sav("data/DE/DEOZ23-07_Veni.sav")
 
