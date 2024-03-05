@@ -87,7 +87,7 @@ df_nl <- df_raw_nl |>
     vote == 16 ~ "BBB",
     vote == 17 ~ "BIJ1",
     vote == 66 ~ "Other",
-    vote == 77 ~ "NOTA", # None of the above, blanco, empty ballot
+    vote == 77 ~ "None of the above",
     vote == 88 ~ "Not allowed to vote",
     vote == 98 ~ "Did not vote",
   )) |> 
@@ -199,11 +199,11 @@ df_de <- df_raw_de |>
     vote == 1 ~ "CDU/CSU",
     vote == 2 ~ "SPD",
     vote == 3 ~ "Die Linke",
-    vote == 4 ~ "Bündnis 90 / Die Grünen",
+    vote == 4 ~ "Grüne",
     vote == 5 ~ "FDP",
     vote == 6 ~ "AfD",
     vote == 7 ~ "Other",
-    vote == 8 ~ "NOTA", # None of the above, blanco, empty ballot
+    vote == 8 ~ "None of the above",
     vote == 9 ~ "Did not vote",
     vote == 10 ~ "Not allowed to vote",
     vote == 11 ~ "Don't remember",
@@ -322,7 +322,7 @@ df_fr <- df_raw_fr |>
     vote == 11 ~ "Poutou",
     vote == 12 ~ "Arthaud",
     vote == 13 ~ "Other",
-    vote == 14 ~ "NOTA", # None of the above, blanco, empty ballot
+    vote == 14 ~ "None of the above",
     vote == 15 ~ "Did not vote",
     vote == 16 ~ "Not allowed to vote",
     vote == 17 ~ "Don't remember",
@@ -441,6 +441,7 @@ demojudges <- bind_rows(df_nl, df_fr, df_de) |>
       TRUE ~ 0),
     mc_demdef = case_when(
       demdef == "yes" & dj_mc_3 == "2" ~ 1,
+      demdef == "no" & dj_mc_3 == "1" ~ 1,
       TRUE ~ 0)
   ) |> 
   
@@ -477,7 +478,7 @@ demojudges <- bind_rows(df_nl, df_fr, df_de) |>
       dv_ambi == 5 ~ 2,
       dv_ambi == 6 ~ 1)) |> 
   
-  # clena up employment-variables
+  # clean up employment-variables
   mutate(
     emp_school = case_when(
       is.na(emp_school) ~ 0,

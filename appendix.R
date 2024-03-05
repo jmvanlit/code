@@ -21,38 +21,240 @@ demojudges <- demojudges_raw |>
     # Convert to factor
     justification = as.factor(justification),
     action = as.factor(action),
-    demdef = as.factor(demdef))
+    demdef = as.factor(demdef),
+    treatment_group = as.factor(treatment_group))
 
 ### Set reference categories
 demojudges$justification <- relevel(demojudges$justification, ref = "none")
 demojudges$action <- relevel(demojudges$action, ref = "media")
 demojudges$demdef <- relevel(demojudges$demdef, ref = "no")
+demojudges$treatment_group <- relevel(demojudges$treatment_group, ref = "1")
+
 
 ################################################################################
 ##### ON THE MAIN ANALYSIS   #####
 ##################################
 
-##### Hypotheses H3 and H4 testing according to PAP ----------------------------
-im.pap.eval <- lm(data = demojudges,
-                  weights = weight,
-                 
-                  dv_eval ~ 
-                    #treatments
-                    justification + action + demdef + (action * demdef) + (demdef * justification) +
-                    
-                    # unbalanced covariates
-                    post_libdem_frelect)
+##### Hypotheses H2 and H4 testing according to PAP ----------------------------
+# Model 5
+model5 <- lm(data = demojudges,
+             weights = weight,
+             
+             dv_eval ~
+             #treatments
+             justification + action + demdef + (action * demdef) + (demdef * justification) +
+             
+             # unbalanced covariates
+             post_libdem_frelect)
 
-texreg(im.pap.eval,
-       caption = "Model Specification for H3 and H4 according to PAP",
+# summary(model5) for the exact p.values presented in the text
+
+# Table B.9
+texreg(model5,
+       caption = "Model specification for H2 and H4 according to PAP",
        caption.above = TRUE,
-       label = "tab:pap-h3-h4",
-       custom.coef.names = c("Intercept","Justification: Corruption","Justification: Self-serving",
-                             "Action: Judiciary", "Democratic Defence: present", 
-                             "Importance of Free and Fair Elections (unbalanced covariate)",
-                             "Judiciary * Democratic Defence", "Corruption * Democratic Defence",
-                             "Self-serving * Democratic Defence"),
-       custom.model.names = c("Model 2 and 3 combined"))
+       label = "tab:m5",
+       custom.model.names = c("Model 5"))
+
+##### Three way Interaction H5 according to PAP --------------------------------
+# Model 6
+model6 <- lm(data = demojudges,
+                 weights = weight,
+                 
+                 dv_eval ~
+                   
+                   #treatments
+                   justification + action + demdef +
+                   (justification * demdef) + (justification * action) + (demdef * action) +
+                   (justification * demdef * action) +
+                   
+                   # unbalanced covariates
+                   post_libdem_frelect)
+
+# Tabel B.10
+texreg(model6,
+       caption = "Full threeway interaction according to PAP",
+       caption.above = TRUE,
+       label = "tab:m6",
+       custom.model.names = c("Model 6"))
+
+### Figure  B.1: Three way interaction ----
+model6_groups <- lm(dv_eval ~ treatment_group + post_libdem_frelect,
+                    weights = weight,
+                    data = demojudges)
+
+model6_intercept <- coef(model6_groups)[1]
+
+model6_groups_plot <- model6_groups |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(
+    fitted_mean = case_when(
+      term != "(Intercept)" ~ model6_intercept + estimate,
+      TRUE ~ estimate), 
+    fitted_low = fitted_mean - 1.96 * std.error,
+    fitted_high = fitted_mean + 1.96 * std.error,
+    demdef = case_when(
+      term == "(Intercept)" ~ "yes",
+      term == "treatment_group2" ~ "no",
+      term == "treatment_group3" ~ "yes",
+      term == "treatment_group4" ~ "no",
+      term == "treatment_group5" ~ "yes",
+      term == "treatment_group6" ~ "no",
+      term == "treatment_group7" ~ "yes",
+      term == "treatment_group8" ~ "no",
+      term == "treatment_group9" ~ "yes",
+      term == "treatment_group10" ~ "no",
+      term == "treatment_group11" ~ "yes",
+      term == "treatment_group12" ~ "no"),
+    action = case_when(
+      term == "(Intercept)" ~ "judiciary",
+      term == "treatment_group2" ~ "judiciary",
+      term == "treatment_group3" ~ "judiciary",
+      term == "treatment_group4" ~ "judiciary",
+      term == "treatment_group5" ~ "judiciary",
+      term == "treatment_group6" ~ "judiciary",
+      term == "treatment_group7" ~ "media",
+      term == "treatment_group8" ~ "media",
+      term == "treatment_group9" ~ "media",
+      term == "treatment_group10" ~ "media",
+      term == "treatment_group11" ~ "media",
+      term == "treatment_group12" ~ "media"),
+    justification = case_when(
+      term == "(Intercept)" ~ "Positively valenced\njustification",
+      term == "treatment_group2" ~ "Positively valenced\njustification",
+      term == "treatment_group3" ~ "Self-serving\njustification",
+      term == "treatment_group4" ~ "Self-serving\njustification",
+      term == "treatment_group5" ~ "No\njustification",
+      term == "treatment_group6" ~ "No\njustification",
+      term == "treatment_group7" ~ "Positively valenced\njustification",
+      term == "treatment_group8" ~ "Positively valenced\njustification",
+      term == "treatment_group9" ~ "Self-serving\njustification",
+      term == "treatment_group10" ~ "Self-serving\njustification",
+      term == "treatment_group11" ~ "No\njustification",
+      term == "treatment_group12" ~ "No\njustification"))
+
+# Plot parameters
+im.colours <- c("yes" = "#26c0c7",
+                "no" = "#d83790")
+
+im.legend <- c("yes" = "Democratic defence **present**",
+               "no" = "Democratic defence **absent**")
+
+text.im <- data.frame(
+  label = c("Democratic defence can  \nbe **successful**", "There is a risk of **backlash**  \nagainst democratic defence"),
+  action = c("media", "judiciary"),
+  x = c(2.4, 0.8),
+  y = c(1.25, 1.85),
+  hjust = c(1, 0),
+  angle = c(0, 0)
+)
+
+arrows.im.media <- 
+  tibble(
+    x = c(2.45),
+    xend = c(3.15),
+    y = c(1.25), 
+    yend = c(1.4),
+    action = c("media")
+  )
+
+arrows.im.judic <- 
+  tibble(
+    x = c(1.8),
+    xend = c(3),
+    y = c(1.88), 
+    yend = c(1.92),
+    action = c("judiciary")
+  )
+
+# plot figure B.1 ...
+figb.1 <- 
+  ggplot(data = model6_groups_plot,
+         aes(x = justification,
+             y = fitted_mean)) +
+  
+  # errorbar
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
+                    colour = demdef),
+                linewidth = 0.6,
+                width = 0,
+                position = position_dodge(width = 0.5)) +
+  
+  # line
+  geom_line(aes(group = demdef,
+                colour = demdef),
+            position = position_dodge(width = 0.5)) +
+  
+  # points
+  geom_point(aes(fill = demdef,
+                 shape = demdef,
+                 colour = demdef),
+             size = 3,
+             position = position_dodge(width = 0.5)) +
+  
+  # facets
+  facet_wrap(~ action,
+             labeller = as_labeller(c(media = "Autocratic action targeting **the media**",
+                                      judiciary = "Autocratic action targeting **the judiciary**"))) +
+  
+  # annotations
+  geom_richtext(data = text.im,
+                label.colour = "white",
+                text.colour = "darkgrey",
+                size = 3,
+                aes(x = x,
+                    y = y,
+                    label = label,
+                    hjust = hjust,
+                    angle = angle)) +
+  
+  geom_curve(data = arrows.im.media, 
+             aes(x = x, 
+                 y = y, 
+                 xend = xend, 
+                 yend = yend),
+             arrow = arrow(length = unit(0.2, "cm")), 
+             linewidth = 0.3,
+             color = "darkgrey") +
+  
+  geom_curve(data = arrows.im.judic, 
+             aes(x = x, 
+                 y = y, 
+                 xend = xend, 
+                 yend = yend),
+             arrow = arrow(length = unit(0.2, "cm")), 
+             linewidth = 0.3,
+             color = "darkgrey",
+             curvature = -0.5) +
+  
+  # theme
+  theme_classic() +
+  theme(axis.text.y = ggtext::element_markdown(),
+        legend.text = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.key.width = unit(1.5, "cm"),
+        strip.text.x = ggtext::element_markdown())+
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  scale_colour_manual(values = im.colours,
+                      labels = im.legend) +
+  scale_fill_manual(values = im.colours,
+                    labels = im.legend) +
+  scale_shape_manual(values = c(22, 23),
+                     labels = im.legend) +
+  scale_x_discrete(limits=c("Self-serving\njustification", "No\njustification", "Positively valenced\njustification"))
+
+# ... and save
+ggsave(filename  = "figures/figb.1.png",
+       plot = figb.1,
+       width = 18,
+       height = 14,
+       dpi = 300,
+       units = "cm")
 
 #### Modifications checks for the mediation models -----------------------------
 
@@ -137,107 +339,21 @@ summary(fit_mm_cred_corr_mod,
         standardize = TRUE,
         rsquare = TRUE)
 
-##### Alternative Visualization for the Participation Battery ------------------
-
-# create a scaled protest battery for appendix figure to more easily compare effect sized
-sm.scaled.protest <- sm.protest |> 
-  filter(dv != "dv_protest") |> 
-  filter(term != "(Intercept)",
-         term != "post_libdem_frelect") |> 
-  dplyr::mutate(term = case_when(
-    term == "justificationself-serving" ~ "H1a: **Self-serving hypothesis**  \nJustification: self-serving  \n*Reference: no justification*",
-    term == "justificationcorruption" ~ "H1b: **Positive valence hypothesis**  \n*Reference: no justification*",
-    term == "actionjudiciary" ~ "Targeting the judiciary  \n*Reference: targeting the media*",
-    term == "demdefyes" ~ "H2: **Democratic defence hypothesis**  \n*Reference: no democratic defence*",
-  ))
-
-# plot parameters
-scaled.colours <- c("dv_protest_scaled" = "#d83790", 
-                    "dv_protest_vote" = "#00577C", 
-                    "dv_protest_poster" = "#4D8F8D", 
-                    "dv_protest_pers" = "#4C716E",
-                    "dv_protest_peti" = "#6884C1",
-                    "dv_protest_lawpr" = "#719FCE", 
-                    "dv_protest_cont" = "#3A3D7E", 
-                    "dv_protest_unlaw" = "#586174")
-
-scaled.legend <- c("dv_protest_scaled" = "**Scaled participation battery**", 
-                   "dv_protest_vote" = "Vote", 
-                   "dv_protest_poster" = "Poster", 
-                   "dv_protest_pers" = "Persuade",
-                   "dv_protest_peti" = "Petition",
-                   "dv_protest_lawpr" = "Lawful protest", 
-                   "dv_protest_cont" = "Contact", 
-                   "dv_protest_unlaw" = "Unlawful protest")
-# plot
-participation_scaled <- 
-  ggplot(data = sm.scaled.protest,
-         aes(x = estimate,
-             y = reorder(term, desc(term)))) +
-  
-  # zero-line
-  geom_vline(xintercept = 0,
-             linetype = "dashed",
-             colour = "darkgrey") +
-  
-  # points, errorbars
-  geom_point(aes(colour = dv,
-                 shape = dv),
-             size = 3,
-             position = position_dodge(width = .5)) +
-  
-  geom_errorbarh(aes(xmin = conf.low,
-                     xmax = conf.high,
-                     colour = dv),
-                 position = position_dodge(width = .5),
-                 height = 0,
-                 size = 0.6) +
-  
-  # theme
-  theme_classic() +
-  facet_wrap(~ dv, 
-             ncol = 4,
-             labeller = as_labeller(c(dv_protest_scaled = "**Scaled battery**",
-                                      dv_protest_vote = "Vote",
-                                      dv_protest_poster = "Poster",
-                                      dv_protest_pers= "Persuade",
-                                      dv_protest_peti = "Petition",
-                                      dv_protest_lawpr = "Lawful protest",
-                                      dv_protest_cont = "Contact", 
-                                      dv_protest_unlaw = "Unlawful protest"))) +
-  scale_colour_manual(values = scaled.colours) +
-  scale_shape_manual(values = c(15, 1, 2, 5, 6, 7, 9, 13)) +
-  
-  # labels and legends
-  labs(x = NULL,
-       y = NULL,
-       title = NULL) +
-  theme(axis.text.y = ggtext::element_markdown(),
-        legend.text = ggtext::element_markdown(),
-        strip.text.x = ggtext::element_markdown(),
-        legend.title = element_blank(),
-        legend.position = "none",
-        legend.key.width = unit(1.5, "cm"),
-        legend.justification = c(1,0))
-
-# and save!
-ggsave(filename  = "figures/participation-scaled.png",
-       plot = participation_scaled,
-       width = 18,
-       height = 10,
-       dpi = 300,
-       units = "cm")
-
 ##### Manipulation and Attention Checks ----------------------------------------
+
+### Counts ----
 att <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   group_by(attention) |> 
   summarise(count = n()) |> 
   mutate(attention = case_when(
-    attention == 0 ~ "Incorrect",
-    TRUE ~ "correct"
+    attention == 0 ~ "Failed",
+    attention == 1 ~ "1 correct",
+    TRUE ~ "Passed"
   ))
 
 man <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   group_by(manipulation) |> 
   summarise(count = n()) |> 
   mutate(manipulation = case_when(
@@ -248,6 +364,7 @@ man <- demojudges |>
   ))
 
 man.act <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   group_by(mc_action) |> 
   summarise(count = n()) |> 
   mutate(mc_action = case_when(
@@ -257,6 +374,7 @@ man.act <- demojudges |>
          "Autocratic Action"= count)
 
 man.dem <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   group_by(mc_demdef) |> 
   summarise(count = n()) |> 
   mutate(mc_demdef = case_when(
@@ -266,6 +384,7 @@ man.dem <- demojudges |>
          "Democratic Defence"= count)
 
 man.jus <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   group_by(mc_justification) |> 
   summarise(count = n()) |> 
   mutate(mc_justification = case_when(
@@ -278,7 +397,7 @@ man.spec <- man.act |>
   left_join(man.dem) |> 
   left_join(man.jus)
 
-# Tables
+# table B.14
 kable(att,
       col.names = c("Attention check", "Count"),
       caption = "Attention Check",
@@ -286,6 +405,7 @@ kable(att,
       format = "latex",
       booktabs = TRUE)
 
+# table B.15
 kable(man,
       col.names = c("Manipulation check", "Count"),
       caption = "Manipulation Check",
@@ -293,14 +413,16 @@ kable(man,
       format = "latex",
       booktabs = TRUE)
 
+# table B.16
 kable(man.spec,
       caption = "Manipulation Checks per Treatment",
       label = "manipulation2",
       format = "latex",
       booktabs = TRUE)
 
-# Manipulation Checks
+### Manipulation checks as predictors ----
 attention <- demojudges |> 
+  filter(!is.na(post_libdem_frelect)) |> 
   # create specific manipulation items
   mutate(
     mc_corruption = case_when(
@@ -359,6 +481,7 @@ m.man.none <- lm(none ~ mc_none,
 
 m.man <- list(m.man.demdef, m.man.action, m.man.corruption, m.man.selfserving, m.man.none)
 
+# table B.17
 texreg(m.man,
        caption = "Manipulation Checks",
        label = "tab:man",
@@ -366,365 +489,300 @@ texreg(m.man,
        sideways = TRUE,
        custom.model.names = c("Democratic defence", "Action against judiciary", "Positively valenced justification", "Self-serving justification", "No justification"))
 
-# Include attention in the models
-# H1a, H1b, H2
-sm.att <- lm(dv_eval ~ justification + action + demdef +
-               attention,
-               data = demojudges,
-               weights = weight) 
+### Controlling for attention and manipulation ----
+sm.att  <- lm(data = demojudges,
+              weights = weight,
+              
+              dv_eval ~
+                
+                # attention
+                as.factor(attention) +
+                
+                # treatments
+                justification + action + demdef +
+                
+                # unbalanced covariates
+                post_libdem_frelect)
 
-# H3
-sm.att.ad <- lm(dv_eval ~ justification + action + demdef + (action * demdef) + attention,
-                  data = demojudges,
-                  weights = weight)
 
-# H4
-sm.att.jd  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) + attention,
-                   data = demojudges,
-                   weights = weight)
+sm.man <- lm(data = demojudges,
+             weights = weight,
+             
+             dv_eval ~
+               
+               # manipulation
+               as.factor(manipulation) +
+               
+               # treatments
+               justification + action + demdef +
+               
+               # unbalanced covariates
+               post_libdem_frelect)
 
-# H5
-sm.att.tw <- lm(dv_eval ~ justification + action + demdef + 
-                    (justification * demdef) + (action * demdef) + (justification * action) +
-                    (justification * action * demdef) + attention,
-                  data = demojudges,
-                  weights = weight)
+attman.cntrl <- list(sm.att, sm.man)
 
-att.models <- list(sm.att, sm.att.ad, sm.att.jd, sm.att.tw)
-
-texreg(att.models,
-       caption = "Does democratic defence matter if we control for attention?",
+# table B.18
+texreg(attman.cntrl,
+       caption = "Controlling for attention and manipulation",
+       label = "tab:attman",
        caption.above = TRUE,
-       label = "tab:att")
+       custom.model.names = c("Attention", "Manipulation"))
+
+### Split sample on attention ----
+lo_att <- demojudges |> 
+  filter(attention == 0)
+
+hi_att <- demojudges |> 
+  filter(attention == 2)
+
+sm.lo_att <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                 data = lo_att,
+                 weights = weight) 
+
+sm.hi_att <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                 data = hi_att,
+                 weights = weight) 
+
+att.models <- list(sm.lo_att, sm.hi_att)
+
+# table B.19
+texreg(att.models,
+       caption = "Does democratic defence matter if we split samples according to attention?",
+       caption.above = TRUE,
+       label = "tab:att.split",
+       custom.model.names = c("No attention", "Full attention"))
+
+### Split sample on manipulation ----
+no_man <- demojudges |> 
+  filter(manipulation == 0)
+
+lo_man <- demojudges |> 
+  filter(manipulation == 1)
+
+med_man <- demojudges |> 
+  filter(manipulation == 2)
+
+hi_man <- demojudges |> 
+  filter(manipulation == 3)
+
+sm.no_man <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                data = no_man,
+                weights = weight) 
+
+sm.lo_man <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                 data = lo_man,
+                 weights = weight) 
+
+sm.med_man <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                 data = med_man,
+                 weights = weight) 
+
+sm.hi_man <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                  data = hi_man,
+                  weights = weight) 
+
+man.models <- list(sm.no_man, sm.lo_man, sm.med_man, sm.hi_man)
+
+# table B. 20
+texreg(man.models,
+       caption = "Does democratic defence matter if we split samples according to manipulation?",
+       caption.above = TRUE,
+       label = "tab:man.split",
+       custom.model.names = c("Failed all", "Passed 1", "Passed 2", "Passed all 3"))
 
 ################################################################################
-##### COMPETING EXPLANATIONS #####
+##### DESCRIPTIVES           #####
+##################################
+descriptives_raw <- read.csv("data/demojudges.csv") |> 
+  as_tibble() |> 
+  filter(!is.na(justification)) |> 
+  filter(!is.na(action)) |> 
+  filter(!is.na(demdef))
+
+# number of respondents who failed to answer the frelect-question.
+na_frelect <- descriptives_raw |> 
+  filter(is.na(post_libdem_frelect)) |> 
+  length()
+
+descriptives <- descriptives_raw |> 
+  filter(!is.na(post_libdem_frelect))
+
+##### Treatment groups ---------------------------------------------------------
+treatment_groups <- descriptives |> 
+  group_by(treatment_group) |> 
+  summarise(count = n())
+
+# table A.1
+kable(treatment_groups,
+      col.names = c("Treatment group", "N"),
+      caption = "Descriptives: countries",
+      label = "desc-countries",
+      format = "latex",
+      booktabs = TRUE)
+
+total_n <- sum(treatment_groups$count)
+
+##### Countries ----------------------------------------------------------------
+country_weighted_n <- descriptives |> 
+  filter(!is.na(weight)) |> 
+  group_by(country) |> 
+  summarise(count_w = n()) 
+
+country_freq <- descriptives |> 
+  group_by(country) |> 
+  summarise(count = n())|> 
+  left_join(country_weighted_n, by = c("country")) |> 
+  mutate(country = case_when(
+    country == "DE" ~ "Germany",
+    country == "FR" ~ "France",
+    country == "NL" ~ "Netherlands"))
+
+# Table C.1
+kable(country_freq,
+      col.names = c("Country", "Count (unweighted)", "Count (weighted)"),
+      caption = "Descriptives: Respondents per country",
+      label = "desc-country",
+      format = "latex",
+      booktabs = TRUE)
+
+##### Dependent variables ------------------------------------------------------
+dvs <- descriptives |> 
+  dplyr::select(dv_eval,
+                dv_ambi,
+                dv_cred,
+                post_agree,
+                dv_protest_vote,
+                dv_protest_poster,
+                dv_protest_pers,
+                dv_protest_peti,
+                dv_protest_lawpr,
+                dv_protest_cont,
+                dv_protest_unlaw,
+                dv_protest) |> 
+  describe(na.rm = TRUE) |> 
+  as_tibble(rownames = "variable") |> 
+  dplyr::select(variable, min, max, median, mean, sd, n) |> 
+  mutate("NA" = 9438 - n,
+         mean = round(mean, 2),
+         sd = round(sd, 2))
+
+# table C.2
+kable(dvs,
+      col.names = c("Variable", "Min", "Max", "Median", "Mean", "SD", "N", "Missing"),
+      caption = "Descriptives: dependent variables",
+      label = "desc-dvs",
+      format = "latex",
+      booktabs = TRUE)
+
+##### Interval variables -------------------------------------------------------
+interval <- descriptives |> 
+  mutate(age = 2023 - byear) |> 
+  dplyr::select(
+    pol_interest,
+    rile,
+    dem_eval_cn,
+    dem_eval_uk,
+    dem_eval_ar,
+    dem_eval_no,
+    dem_eval_se,
+    pol_trust_crt,
+    pol_trust_gov,
+    pol_trust_med,
+    pol_trust_pol,
+    pol_trust_par,
+    post_libdem_frexp,
+    post_libdem_frassc,
+    post_libdem_unisuff,
+    post_libdem_frelect,
+    post_libdem_judcnstr,
+    post_libdem_eqlaw,
+    post_dem_satis,
+    post_dem_sup) |> 
+  describe(na.rm = TRUE) |> 
+  as_tibble(rownames = "variable") |> 
+  dplyr::select(variable, min, max, median, mean, sd, n) |> 
+  mutate("NA" = 9438 - n,
+         mean = round(mean, 2),
+         sd = round(sd, 2))
+
+# table C.3
+kable(interval,
+      col.names = c("Variable", "Min", "Max", "Median", "Mean", "SD", "N", "Missing"),
+      caption = "Descriptives: interval covariates",
+      label = "desc-interval",
+      format = "latex",
+      booktabs = TRUE)
+
+################################################################################
+##### ALTERNATIVE OUTCOME    #####
 ##################################
 
 ##### Alternative dependent variable: dv_agree ---------------------------------
-# H1a, H1b, H2
+# Model 1
 sm.agree <- lm(post_agree ~ justification + action + demdef + post_libdem_frelect,
                data = demojudges,
                weights = weight) 
 
-# H3
+# Model 2
 im.agree.ad <- lm(post_agree ~ justification + action + demdef + (action * demdef) + post_libdem_frelect,
                   data = demojudges,
                   weights = weight)
 
-# H4
+# Model 3
 im.agree.jd  <- lm(post_agree ~ justification + action + demdef + (justification * demdef) + post_libdem_frelect,
                    data = demojudges,
                    weights = weight)
 
-# H5
+# Model 6
 im.agree.tw <- lm(post_agree ~ justification + action + demdef + 
                     (justification * demdef) + (action * demdef) + (justification * action) +
                     (justification * action * demdef) + post_libdem_frelect,
                   data = demojudges,
                   weights = weight)
 
-models_agree <- list(sm.agree, im.agree.ad, im.agree.jd, im.agree.tw)
 
+models_agree <- list(sm.agree, im.agree.ad, im.agree.jd)
+
+# table B.11
 texreg(models_agree,
        caption = "Does democratic defence matter if we ask about agreement?",
        caption.above = TRUE,
        label = "tab:agree")
 
-### And what if we control for agreement?
-# H1a, H1b, H2
-sm.cntrl.agree <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect + post_agree,
-               data = demojudges,
-               weights = weight) 
+# table B.12
+texreg(im.agree.tw,
+       caption = "Does democratic defence matter if we ask about agreement?",
+       caption.above = TRUE,
+       label = "tab:agree.tw",
+       custom.model.names = c("Model 6"))
 
-# H3
-im.cntrl.agree.ad <- lm(dv_eval ~ justification + action + demdef + (action * demdef) + post_libdem_frelect + post_agree,
-                  data = demojudges,
+### And what if we split the sample?
+lo_agree <- demojudges |> 
+  filter(post_agree <= 4)
+
+hi_agree <- demojudges |> 
+  filter(post_agree > 4)
+
+sm.lo_agree <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                  data = lo_agree,
                   weights = weight)
 
-# H4
-im.cntrl.agree.jd  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) + post_libdem_frelect + post_agree,
-                   data = demojudges,
-                   weights = weight)
+summary(sm.lo_agree) # for exact p-values in the text
 
-# H5
-im.cntrl.agree.tw <- lm(dv_eval ~ justification + action + demdef + 
-                    (justification * demdef) + (action * demdef) + (justification * action) +
-                    (justification * action * demdef) + post_libdem_frelect + post_agree,
-                  data = demojudges,
+sm.hi_agree <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                  data = hi_agree,
                   weights = weight)
 
-models_cntrl_agree <- list(sm.cntrl.agree, im.cntrl.agree.ad, im.cntrl.agree.jd, im.cntrl.agree.tw)
+summary(sm.hi_agree) # for exact p-values in the text
 
-texreg(models_cntrl_agree,
-       caption = "Does democratic defence matter if we control for agreement?",
+models_agree2 <- list(sm.lo_agree, sm.hi_agree)
+
+# table B.13
+texreg(models_agree2,
+       caption = "Does democratic defence matter if we split samples according to agreement?",
        caption.above = TRUE,
-       label = "tab:agree.cntrl")
-
-##### Country Effects ----------------------------------------------------------
-
-# H1a, H1b, H2
-sm.eval.cntry <- lm(dv_eval ~ justification + action + demdef +
-                 country + post_libdem_frelect,
-               data = demojudges,
-               weights = weight) 
-
-# H3
-im.eval.ad.cntry <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
-                    country + post_libdem_frelect,
-                  data = demojudges,
-                  weights = weight)
-
-# H4
-im.eval.jd.cntry  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
-                     country + post_libdem_frelect,
-                   data = demojudges,
-                   weights = weight)
-
-# H5
-im.eval.tw.cntry <- lm(dv_eval ~ justification + action + demdef + 
-                    (justification * demdef) + (action * demdef) + (justification * action) +
-                    (justification * action * demdef) +
-                    country + post_libdem_frelect,
-                  data = demojudges,
-                  weights = weight)
-
-models_eval_country <- list(sm.eval.cntry, im.eval.ad.cntry, im.eval.jd.cntry, im.eval.tw.cntry)
-
-texreg(models_eval_country,
-       caption = "Does democratic defence matter (with country effects)?",
-       caption.above = TRUE,
-       label = "tab:cntry")
-
-### Netherlands
-netherlands <- demojudges |> 
-  filter(country == "NL")
-
-france <- demojudges |> 
-  filter(country == "FR")
-
-germany <- demojudges |> 
-  filter(country == "DE")
-
-# H1a, H1b, H2
-sm.eval.nl <- lm(dv_eval ~ justification + action + demdef,
-                    data = netherlands,
-                    weights = weight) 
-
-sm.eval.fr <- lm(dv_eval ~ justification + action + demdef,
-                 data = france,
-                 weights = weight) 
-
-sm.eval.de <- lm(dv_eval ~ justification + action + demdef,
-                 data = germany,
-                 weights = weight) 
-
-
-models_eval_splitcntry <- list(sm.eval.nl, sm.eval.fr, sm.eval.de)
-
-texreg(models_eval_splitcntry,
-       caption = "Does democratic defence matter in different countries?",
-       caption.above = TRUE,
-       label = "tab:splitcntry",
-       custom.model.names = c("Netherlands", "France", "Germany"))
-
-##### Incumbent Effects --------------------------------------------------------
-incumbency <- demojudges |> 
-  mutate(
-    incumbency = case_when(
-      vote == "VVD" ~ 1,
-      vote == "Macron" ~ 1,
-      vote == "SPD" ~ 1,
-      TRUE ~ 0),
-    coalition = case_when(
-      vote == "VVD" | vote == "CDA" | vote == "D66" | vote == "CU" ~ 1,
-      vote == "Macron" ~ 1, #do we have the coalition-vote information from the presidential candidate vote?
-      vote == "SPD"| vote == "FDP" | vote == "Bündnis 90 / Die Grünen" ~ 1,
-      TRUE ~ 0))
-
-# H1a, H1b, H2
-sm.eval.inc <- lm(dv_eval ~ justification + action + demdef +
-                    incumbency + post_libdem_frelect,
-                    data = incumbency,
-                    weights = weight) 
-
-sm.eval.coa <- lm(dv_eval ~ justification + action + demdef +
-                    coalition + post_libdem_frelect,
-                  data = incumbency |> filter(country != "FR"),
-                  weights = weight) 
-
-sm.eval.coa.fr <- lm(dv_eval ~ justification + action + demdef +
-                    coalition + post_libdem_frelect,
-                  data = incumbency,
-                  weights = weight) 
-
-
-models_eval_inc <- list(sm.eval.inc, sm.eval.coa, sm.eval.coa.fr)
-
-texreg(models_eval_inc,
-       caption = "Does democratic defence matter (with incumbency effects)?",
-       caption.above = TRUE,
-       label = "tab:inc",
-       custom.model.names = c("Vote on election winner", "Vote on coalition member (excluding France)",
-                              "Vote on coalition member (including France)"))
-
-##### Party Choice -------------------------------------------------------------
-# H1a, H1b, H2
-sm.eval.vote <- lm(dv_eval ~ justification + action + demdef +
-                      post_libdem_frelect + vote,
-                    data = demojudges,
-                    weights = weight) 
-
-# H3
-im.eval.ad.vote <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
-                         post_libdem_frelect + vote,
-                       data = demojudges,
-                       weights = weight)
-
-# H4
-im.eval.jd.vote <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
-                          post_libdem_frelect + vote,
-                        data = demojudges,
-                        weights = weight)
-
-# H5
-im.eval.tw.vote <- lm(dv_eval ~ justification + action + demdef + 
-                         (justification * demdef) + (action * demdef) + (justification * action) +
-                         (justification * action * demdef) +
-                         post_libdem_frelect + vote,
-                       data = demojudges,
-                       weights = weight)
-
-models_eval_vote <- list(sm.eval.vote, im.eval.ad.vote, im.eval.jd.vote, im.eval.tw.vote)
-
-texreg(models_eval_vote,
-       caption = "Does democratic defence matter (if we control for previous vote)?",
-       caption.above = TRUE,
-       label = "tab:vote",
-       longtable = TRUE)
-
-##### Democracy Attitudes ------------------------------------------------------
-# H1a, H1b, H2
-sm.eval.dem <- lm(dv_eval ~ justification + action + demdef +
-                      post_libdem_frexp + post_libdem_frassc + post_libdem_unisuff + post_libdem_frelect + post_libdem_judcnstr + post_libdem_eqlaw +
-                    post_dem_satis + post_dem_sup,
-                    data = demojudges,
-                    weights = weight) 
-
-# H3
-im.eval.ad.dem <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
-                       post_libdem_frexp + post_libdem_frassc + post_libdem_unisuff + post_libdem_frelect + post_libdem_judcnstr + post_libdem_eqlaw +
-                       post_dem_satis + post_dem_sup,
-                       data = demojudges,
-                       weights = weight)
-
-# H4
-im.eval.jd.dem  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
-                        post_libdem_frexp + post_libdem_frassc + post_libdem_unisuff + post_libdem_frelect + post_libdem_judcnstr + post_libdem_eqlaw +
-                        post_dem_satis + post_dem_sup,
-                        data = demojudges,
-                        weights = weight)
-
-# H5
-im.eval.tw.dem <- lm(dv_eval ~ justification + action + demdef + 
-                         (justification * demdef) + (action * demdef) + (justification * action) +
-                         (justification * action * demdef) +
-                       post_libdem_frexp + post_libdem_frassc + post_libdem_unisuff + post_libdem_frelect + post_libdem_judcnstr + post_libdem_eqlaw +
-                       post_dem_satis + post_dem_sup,
-                       data = demojudges,
-                       weights = weight)
-
-models_eval_dem <- list(sm.eval.dem, im.eval.ad.dem, im.eval.jd.dem, im.eval.tw.dem)
-
-texreg(models_eval_dem,
-       caption = "Does democratic defence matter (if we control for commitment to democracy)?",
-       caption.above = TRUE,
-       label = "tab:dem",
-       longtable = TRUE)
-
-##### Political Trust ----------------------------------------------------------
-trust <- demojudges |> 
-  mutate(trust = (pol_trust_crt + pol_trust_gov + pol_trust_med + pol_trust_pol + pol_trust_par) / 5)
-
-# Seperate items
-# H1a, H1b, H2
-sm.eval.trust.items <- lm(dv_eval ~ justification + action + demdef +
-                            pol_trust_crt + pol_trust_gov + pol_trust_med + pol_trust_pol + pol_trust_par,
-                   data = demojudges,
-                   weights = weight) 
-
-texreg(sm.eval.trust.items,
-       caption = "Does democratic defence matter (with all trust-items)?",
-       caption.above = TRUE,
-       label = "tab:trust-items")
-
-# On the aggregate
-# H1a, H1b, H2
-sm.eval.trust <- lm(dv_eval ~ justification + action + demdef +
-                     trust,
-                   data = trust,
-                   weights = weight) 
-
-# H3
-im.eval.ad.trust <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
-                         trust,
-                      data = trust,
-                      weights = weight)
-
-# H4
-im.eval.jd.trust  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
-                          trust,
-                       data = trust,
-                       weights = weight)
-
-# H5
-im.eval.tw.trust <- lm(dv_eval ~ justification + action + demdef + 
-                        (justification * demdef) + (action * demdef) + (justification * action) +
-                        (justification * action * demdef) +
-                         trust,
-                      data = trust,
-                      weights = weight)
-
-models_eval_trust <- list(sm.eval.trust, im.eval.ad.trust, im.eval.jd.trust, im.eval.tw.trust)
-
-texreg(models_eval_trust,
-       caption = "Does democratic defence matter (with trust-index)?",
-       caption.above = TRUE,
-       label = "tab:trust")
-
-##### Political Interest and RiLe ----------------------------------------------
-# H1a, H1b, H2
-sm.eval.rile <- lm(dv_eval ~ justification + action + demdef +
-                     rile + pol_interest,
-                    data = demojudges,
-                    weights = weight) 
-
-# H3
-im.eval.ad.rile <- lm(dv_eval ~ justification + action + demdef + (action * demdef) +
-                        rile + pol_interest,
-                       data = demojudges,
-                       weights = weight)
-
-# H4
-im.eval.jd.rile  <- lm(dv_eval ~ justification + action + demdef + (justification * demdef) +
-                         rile + pol_interest,
-                        data = demojudges,
-                        weights = weight)
-
-# H5
-im.eval.tw.rile <- lm(dv_eval ~ justification + action + demdef + 
-                         (justification * demdef) + (action * demdef) + (justification * action) +
-                         (justification * action * demdef) +
-                        rile + pol_interest,
-                       data = demojudges,
-                       weights = weight)
-
-models_eval_rile <- list(sm.eval.rile, im.eval.ad.rile, im.eval.jd.rile, im.eval.tw.rile)
-
-texreg(models_eval_rile,
-       caption = "Does democratic defence matter (with interest and RiLe)?",
-       caption.above = TRUE,
-       label = "tab:resp")
+       label = "tab:agree.split",
+       custom.model.names = c("Low agreement", "High agreement"))
 
 ################################################################################
 ##### UNWEIGHTED DATA        #####
@@ -762,53 +820,142 @@ im.tw.eval.unw <- lm(data = demojudges,
 
 unw_models <- list(sm.eval.unw, im.si.eval.unw, im.jd.eval.unw, im.tw.eval.unw)
 
+# table D.1
 texreg(unw_models,
        caption = "Does Democratic Defence Matter (Unweighted Data)?",
        caption.above = TRUE,
-       label = "tab:unwmodels")
+       label = "tab:unwmodels",
+       custom.model.names = c("Model 1", "Model 2", "Model 3", "Model 6"))
 
-##### Political participation --------------------------------------------------
+# Model 4
+threeway_unw <- demojudges |> 
+  mutate(
+    group = as.factor(case_when(
+      treatment_group == 2 | treatment_group == 8 ~ 1, # no democratic defence against corruption
+      treatment_group == 6 | treatment_group == 12 ~ 2, # no democratic defence against none
+      treatment_group == 4 | treatment_group == 10 ~ 3, # no democratic defence against self-serving
+      treatment_group == 1 ~ 4, # self-interested democratic defence against corruption
+      treatment_group == 5 ~ 5, # self-interested democratic defence against none
+      treatment_group == 3 ~ 6, # self-interested democratic defence against self-serving
+      treatment_group == 7 ~ 7, # not-self-interested democratic defence against corruption
+      treatment_group == 11 ~ 8, # not-self-interested democratic defence against none
+      treatment_group == 9 ~ 9))) # not-self-interested democratic defence againstself-serving
 
-# define new function to run multiple lm() for all protest items and the sum-index
-run_multiple_lm_unw <- function(dv){
-  lm_formula <- as.formula(paste(dv, "~ action + demdef + justification"))
-  model <- lm(lm_formula, data = demojudges)
-  result <- tidy(model, conf.int = TRUE)
-  result$dv <- dv
-  return(result)
-}
+threeway_unw$group <- relevel(threeway_unw$group, ref = "1")
 
-protest.dvs.unw <- c("dv_protest",
-                 "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
-                 "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")
+# fit coefficients based on the aggregated treatment groups  
+model_threeway_unw <- lm(data = threeway_unw,
+                     
+                     dv_eval ~
+                       
+                       # treatments
+                       group)
 
-### simple model
-sm.protest.unw <- map_df(protest.dvs.unw, run_multiple_lm_unw) |> 
-  mutate(model = "simple") |> 
-  mutate(dv = factor(dv, levels = c("dv_protest", "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
-                                    "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")))
+threeway_unw.intercept <- coef(model_threeway_unw)[1]
 
-#### Table for Protest-dv ----
-protest.table.unw <- sm.protest.unw |> 
-  mutate(sig = case_when(p.value < 0.05 ~ "*",
-                         p.value < 0.01 ~ "**",
-                         p.value < 0.001 ~ "***",
-                         TRUE ~ ""),
-         stat = str_c(round(estimate, 2), " (", round(std.error,2 ), ")", sig)) |> 
-  dplyr::select(term, dv, stat) |> 
-  pivot_wider(names_from = dv, values_from = stat) |> 
-  t()
+threeway_unw.plot <- model_threeway_unw |> 
+  tidy() |> 
+  filter(term != "post_libdem_frelect") |> 
+  mutate(
+    fitted_mean = case_when(
+      term != "(Intercept)" ~ threeway_unw.intercept + estimate,
+      TRUE ~ estimate), 
+    fitted_low = fitted_mean - 1.96 * std.error,
+    fitted_high = fitted_mean + 1.96 * std.error,
+    demdef = case_when(
+      term == "(Intercept)" | term == "group2" | term == "group3"  ~ "no",
+      term == "group4" | term == "group5" | term == "group6"  ~ "self-interested",
+      term == "group7" | term == "group8" | term == "group9"  ~ "selfless"),
+    justification = case_when(
+      term == "(Intercept)" | term == "group4" | term == "group7"  ~ "Positively valenced\njustification",
+      term == "group2" | term == "group5" | term == "group8"  ~ "No\njustification",
+      term == "group3" | term == "group6" | term == "group9"  ~ "Self-serving\njustification"))
 
-# Table 
-kable(protest.table.unw, 
-      booktabs = TRUE, 
+# plot parameters
+tw.colours <- c("no" = "#5151d3",
+                "self-interested" = "#e68619",
+                "selfless" = "#26c0c7")
+
+tw.legend <- c("no" = "**No** democratic  \ndefence",
+               "self-interested" = "**Self-interested**  \ndemocratic defence",
+               "selfless" = "**Selfless**  \ndemocratic defence")
+
+# plot figure D.1 ...
+figd.1 <- 
+  ggplot(data = threeway_unw.plot,
+         aes(x = justification,
+             y = fitted_mean)) +
+  
+  # errorbar
+  geom_errorbar(aes(ymin = fitted_low,
+                    ymax = fitted_high,
+                    colour = demdef),
+                linewidth = 0.6,
+                width = 0,
+                position = position_dodge(width = 0.5)) +
+  
+  # line
+  geom_line(aes(group = demdef,
+                colour = demdef),
+            position = position_dodge(width = 0.5)) +
+  
+  # points
+  geom_point(aes(fill = demdef,
+                 shape = demdef,
+                 colour = demdef),
+             size = 3,
+             position = position_dodge(width = 0.5)) +
+  
+  # theme
+  theme_classic() +
+  theme(axis.text.y = ggtext::element_markdown(),
+        legend.text = ggtext::element_markdown(),
+        legend.title = element_blank(),
+        legend.position = "bottom",
+        legend.key.width = unit(1.5, "cm"))+
+  labs(x = NULL,
+       y = NULL,
+       title = NULL) +
+  scale_colour_manual(values = tw.colours,
+                      labels = tw.legend) +
+  scale_fill_manual(values = tw.colours,
+                    labels = tw.legend) +
+  scale_shape_manual(values = c(15, 17, 19),
+                     labels = tw.legend) +
+  scale_x_discrete(limits=c("Self-serving\njustification", "No\njustification", "Positively valenced\njustification"))
+
+# ... and save
+ggsave(filename  = "figures/figd.1.png",
+       plot = figd.1,
+       width = 18,
+       height = 14,
+       dpi = 300,
+       units = "cm")
+
+# fitted means for the three way interaction
+threeway_unw.table <- threeway_unw.plot |> 
+  mutate(
+    stars = case_when(
+      p.value < 0.05 ~ "*",
+      p.value < 0.01 ~ "**",
+      p.value < 0.001 ~ "***",
+      TRUE ~ ""),
+    fitted_mean = round(fitted_mean, 3),
+    fitted_low = round(fitted_low, 3),
+    fitted_high = round(fitted_high, 3),
+    fitted_mean2 = paste0(fitted_mean, " [", fitted_low, "; ", fitted_high, "]", sep = "")) |> 
+  dplyr::select(term, fitted_mean2)
+
+# table D.2
+kable(threeway_unw.table,
+      col.names = c("", "Fitted mean"),
+      caption = "Three way interaction between the justification and democratic defence (Unweighted data)",
+      label = "tw-appendix",
       format = "latex",
-      caption = "Does Democratic Defence Result in Political Participation? (Unweighted Data)",
-      label = "protest_unw",
-      escape = TRUE)
+      booktabs = TRUE)
 
 ################################################################################
-##### MEDIATION              #####
+##### UNWEIGHTED MEDIATION   #####
 ##################################
 
 # data preparation
@@ -826,6 +973,49 @@ tbl_mediation_unw <- demojudges |>
     judiciary = case_when(
       action == "judiciary" ~ 1,
       TRUE ~ 0))
+
+
+##### Credibility --------------------------------------------------------------
+# these models are run without demdef as dv_cred was only shown when demdef == 1
+
+# data preparation
+tbl_cred_unw <- tbl_mediation_unw |> 
+  filter(!is.na(dv_cred))
+
+mm_cred_unw <- '
+# outcome model
+dv_eval ~ b1*judiciary + b2*corr + b3*self + m1*dv_cred
+
+# mediator model
+dv_cred ~ a1*judiciary
+'
+
+fit_mm_cred_unw <- sem(mm_cred_unw, 
+                       data = tbl_cred_unw,
+                       estimator = "WLSMV")
+
+# table D.3, Panel A
+summary(fit_mm_cred_unw,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
+lavaanPlot(model = fit_mm_cred_unw, 
+           coefs = TRUE,
+           sig = 0.05,
+           stars = "regress")
+
+# MLR estimator
+fit_mm_cred_unw_mlr <- sem(mm_cred_unw, 
+                           data = tbl_cred_unw,
+                           estimator = "MLR")
+
+# table D.3, Panel A
+summary(fit_mm_cred_unw_mlr,
+        fit.measures = TRUE,
+        standardize = TRUE,
+        rsquare = TRUE)
+
 
 ##### Ambiguity ----------------------------------------------------------------
 
@@ -846,6 +1036,7 @@ fit_mm_ambi_corr_unw <- sem(mm_ambi_corr_unw,
                             data = tbl_ambi_unw,
                             estimator = "WLSMV")
 
+# table D.3, Panel B
 summary(fit_mm_ambi_corr_unw,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -858,18 +1049,14 @@ lavaanPlot(model = fit_mm_ambi_corr_unw,
 
 # MLR estimator
 fit_mm_ambi_corr_unw_mlr <- sem(mm_ambi_corr_unw,
-                            data = tbl_ambi_unw,
-                            estimator = "MLR")
+                                data = tbl_ambi_unw,
+                                estimator = "MLR")
 
+# table D.4, Panel B
 summary(fit_mm_ambi_corr_unw_mlr,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
-
-lavaanPlot(model = fit_mm_ambi_corr_unw_mlr, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
 
 ### Self-serving justification decreases ambiguity -----------------------------
 mm_ambi_self_unw <- '
@@ -884,73 +1071,62 @@ fit_mm_ambi_self_unw <- sem(mm_ambi_self_unw,
                             data = tbl_ambi_unw,
                             estimator = "WLSMV")
 
+# table D.3, Panel C
 summary(fit_mm_ambi_self_unw,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
-lavaanPlot(model = fit_mm_ambi_self_unw, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
-
 # MLR estimator
 fit_mm_ambi_self_unw_mlr <- sem(mm_ambi_self_unw, 
-                            data = tbl_ambi_unw,
-                            estimator = "MLR")
+                                data = tbl_ambi_unw,
+                                estimator = "MLR")
 
+# table D.4, Panel C
 summary(fit_mm_ambi_self_unw_mlr,
         fit.measures = TRUE,
         standardize = TRUE,
         rsquare = TRUE)
 
-lavaanPlot(model = fit_mm_ambi_self_unw_mlr, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
+################################################################################
+##### UNWEIGHTED PARTICIPATION #####
+####################################
 
-##### Credibility --------------------------------------------------------------
-# these models are run without demdef as dv_cred was only shown when demdef == 1
+# define new function to run multiple lm() for all protest items and the sum-index
+run_multiple_lm_unw <- function(dv){
+  lm_formula <- as.formula(paste(dv, "~ action + demdef + justification"))
+  model <- lm(lm_formula, data = demojudges)
+  result <- tidy(model, conf.int = TRUE)
+  result$dv <- dv
+  return(result)
+}
 
-# data preparation
-tbl_cred_unw <- tbl_mediation_unw |> 
-  filter(!is.na(dv_cred))
+protest.dvs.unw <- c("dv_protest",
+                 "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
+                 "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")
 
-mm_cred_unw <- '
-# outcome model
-dv_eval ~ b1*judiciary + b2*corr + b3*self + m1*dv_cred
+### simple model
+sm.protest.unw <- map_df(protest.dvs.unw, run_multiple_lm_unw) |> 
+  mutate(model = "simple") |> 
+  mutate(dv = factor(dv, levels = c("dv_protest", "dv_protest_vote", "dv_protest_poster", "dv_protest_pers",
+                                    "dv_protest_peti", "dv_protest_lawpr", "dv_protest_cont", "dv_protest_unlaw")))
 
-# mediator model
-dv_cred ~ a1*judiciary
-'
+protest.table.unw <- sm.protest.unw |> 
+  mutate(sig = case_when(p.value < 0.05 ~ "*",
+                         p.value < 0.01 ~ "**",
+                         p.value < 0.001 ~ "***",
+                         TRUE ~ ""),
+         stat = str_c(round(estimate, 2), " (", round(std.error,2 ), ")", sig)) |> 
+  dplyr::select(term, dv, stat) |> 
+  pivot_wider(names_from = dv, values_from = stat) |> 
+  t()
 
-fit_mm_cred_unw <- sem(mm_cred_unw, 
-                   data = tbl_cred_unw,
-                   estimator = "WLSMV")
-
-summary(fit_mm_cred_unw,
-        fit.measures = TRUE,
-        standardize = TRUE,
-        rsquare = TRUE)
-
-lavaanPlot(model = fit_mm_cred_unw, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
-
-# MLR estimator
-fit_mm_cred_unw_mlr <- sem(mm_cred_unw, 
-                       data = tbl_cred_unw,
-                       estimator = "MLR")
-
-summary(fit_mm_cred_unw_mlr,
-        fit.measures = TRUE,
-        standardize = TRUE,
-        rsquare = TRUE)
-
-lavaanPlot(model = fit_mm_cred_unw_mlr, 
-           coefs = TRUE,
-           sig = 0.05,
-           stars = "regress")
+# table D.5 
+kable(protest.table.unw, 
+      booktabs = TRUE, 
+      format = "latex",
+      caption = "Does Democratic Defence Result in Political Participation? (Unweighted Data)",
+      label = "protest_unw",
+      escape = TRUE)
 
 # /./ End of Code /./
