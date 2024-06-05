@@ -139,26 +139,26 @@ im.jd.eval.plot <- im.jd.eval |>
 fig2_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |> 
   mutate(
     order = case_when(
-      term == "justificationself-serving" ~ 5,
+      term == "justificationself-serving" ~ 4,
       term == "justificationcorruption" ~ 4,
       term == "actionjudiciary" ~ 1,
       term == "demdefyes" ~ 2,
-      term == "actionjudiciary:demdefyes" ~ 3,
+      term == "actionjudiciary:demdefyes" ~ 5,
       term == "justificationself-serving:demdefyes" ~ 7,
       term == "justificationcorruption:demdefyes" ~ 6),
     term = case_when(
-      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
-      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "justificationself-serving" ~ "Justification: power",
+      term == "justificationcorruption" ~ "Justification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**",
-      term == "actionjudiciary:demdefyes" ~ "*H2*: **Credibility hypothesis**  \nTarget: judiciary  \nDemocratic defense: present",
-      term == "justificationself-serving:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: power  \nDemocratic defense: present",
-      term == "justificationcorruption:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: corruption  \nDemocratic defense: present"))
+      term == "demdefyes" ~ "Democratic defense: present",
+      term == "actionjudiciary:demdefyes" ~ "Judiciary x Democratic defense",
+      term == "justificationself-serving:demdefyes" ~ "Power x Democratic defense",
+      term == "justificationcorruption:demdefyes" ~ "Corruption x Democratic defense"))
       
 # plot parameters
-fig2_legend <- c("Model 1" = "Model 1  \n**Without** interactions",
-                 "Model 2" = "Model 2  \n**Credibility** interaction",
-                 "Model 3" = "Model 3  \n**Ambiguity** interaction")
+# fig2_legend <- c("Model 1" = "Model 1  \n**Without** interactions",
+#                  "Model 2" = "Model 2  \n**Credibility** interaction",
+#                  "Model 3" = "Model 3  \n**Ambiguity** interaction")
 fig2_colours <- c("Model 1" = "#e68619",
                   "Model 2" = "#5151d3",
                   "Model 3" = "#26c0c7")
@@ -188,18 +188,15 @@ fig2 <-
    
    # faceting
    facet_grid(cols = vars(model),
-              labeller = as_labeller(c("Model 1" = "Model 1  \n**No interactions**",
-                                       "Model 2" = "Model 2  \n**Credibility interaction**",
-                                       "Model 3" = "Model 3  \n**Ambiguity interaction**"))) +
+              labeller = as_labeller(c("Model 1" = "Model 1  \n**No interactions**  \n*H1, H3a, H3b*",
+                                       "Model 2" = "Model 2  \n**Credibility interaction**  \n*H2*",
+                                       "Model 3" = "Model 3  \n**Ambiguity interaction**  \n*H4*"))) +
    
    # theme
    theme_classic() +
-   scale_colour_manual(values = fig2_colours,
-                       labels = fig2_legend) +
-   scale_shape_manual(values = c(15, 17, 19),
-                      labels = fig2_legend) +
-   scale_linetype_manual(values = c("dashed", "solid", "dotdash"),
-                         labels = fig2_legend) +
+   scale_colour_manual(values = fig2_colours) +
+   scale_shape_manual(values = c(15, 17, 19)) +
+   scale_linetype_manual(values = c("dashed", "solid", "dotdash")) +
    
    # labels and legend
    labs(x = NULL,
@@ -535,10 +532,10 @@ sm.protest.plot <- sm.protest |>
          term != "post_libdem_frelect",
          dv != "dv_protest_scaled") |> 
   dplyr::mutate(term = case_when(
-    term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
-    term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+    term == "justificationself-serving" ~ "Justification: power",
+    term == "justificationcorruption" ~ "Justification: corruption",
     term == "actionjudiciary" ~ "Target: judiciary",
-    term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"))
+    term == "demdefyes" ~ "Democratic defense: present"))
 
 # plot figure 5 ...
 fig5 <- 
@@ -659,10 +656,10 @@ nl.n <- nobs(sm.eval.nl)
 country.plot <- bind_rows(nl.plot, de.plot, fr.plot) |> 
   mutate(
     term = case_when(
-      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
-      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "justificationself-serving" ~ "Justification: power",
+      term == "justificationcorruption" ~ "Justification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
+      term == "demdefyes" ~ "Democratic defense: present"),
     country2 = case_when(
       country == "France" ~ paste0(country, "  \n*n = ", fr.n, "*"),
       country == "Germany" ~ paste0(country, "  \n*n = ", de.n, "*"),
@@ -855,10 +852,10 @@ frright.n <- nobs(fr)
 parties.plot <- bind_rows(fl.plot, cl.plot, cr.plot, fright.plot) |> 
   mutate(
     term = case_when(
-      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
-      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "justificationself-serving" ~ "Justification: power",
+      term == "justificationcorruption" ~ "Justification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
+      term == "demdefyes" ~ "Democratic defense: present"),
     type2 = case_when(
       type == "Far-left" ~ paste0(type, "  \n*n = ", fl.n, "*"),
       type == "Center-left" ~ paste0(type, "  \n*n = ", cl.n, "*"),
@@ -992,10 +989,10 @@ right.n <- nobs(sm.right)
 rile.plot <- bind_rows(left.plot, center.plot, right.plot) |> 
   mutate(
     term = case_when(
-      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
-      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "justificationself-serving" ~ "Justification: power",
+      term == "justificationcorruption" ~ "Justification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
+      term == "demdefyes" ~ "Democratic defense: present"),
     type2 = case_when(
       type == "Left" ~ paste0(type, "  \n*n = ", left.n, "*"),
       type == "Center" ~ paste0(type, "  \n*n = ", center.n, "*"),
