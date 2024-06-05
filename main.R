@@ -150,10 +150,10 @@ fig2_data <- bind_rows(sm.eval.plot, im.si.eval.plot, im.jd.eval.plot) |>
       term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
       term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defence hypothesis**",
-      term == "actionjudiciary:demdefyes" ~ "*H2*: **Credibility hypothesis**  \nTarget: judiciary  \nDemocratic defence: present",
-      term == "justificationself-serving:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: power  \nDemocratic defence: present",
-      term == "justificationcorruption:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: corruption  \nDemocratic defence: present"))
+      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**",
+      term == "actionjudiciary:demdefyes" ~ "*H2*: **Credibility hypothesis**  \nTarget: judiciary  \nDemocratic defense: present",
+      term == "justificationself-serving:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: power  \nDemocratic defense: present",
+      term == "justificationcorruption:demdefyes" ~ "*H4*: **Ambiguity hypothesis**  \nJustification: corruption  \nDemocratic defense: present"))
       
 # plot parameters
 fig2_legend <- c("Model 1" = "Model 1  \n**Without** interactions",
@@ -246,9 +246,9 @@ tw.colours <- c("no" = "#5151d3",
                 "self-interested" = "#e68619",
                 "selfless" = "#26c0c7")
 
-tw.legend <- c("no" = "**No** democratic  \ndefence",
-               "self-interested" = "**Self-interested**  \ndemocratic defence",
-               "selfless" = "**Selfless**  \ndemocratic defence")
+tw.legend <- c("no" = "**No** democratic  \ndefense",
+               "self-interested" = "**Self-interested**  \ndemocratic defense",
+               "selfless" = "**Selfless**  \ndemocratic defense")
 
 # plot figure 3 ...
 fig3 <- 
@@ -282,7 +282,7 @@ fig3 <-
         legend.text = ggtext::element_markdown(),
         legend.title = element_blank(),
         legend.position = "bottom",
-        legend.key.width = unit(1.5, "cm"))+
+        legend.key.width = unit(1.5, "cm")) +
   labs(x = NULL,
        y = NULL,
        title = NULL) +
@@ -314,7 +314,7 @@ texreg(table1_models,
 
 # table B.2
 texreg(model_threeway,
-       caption = "Three way interaction between the justification and democratic defence",
+       caption = "Three way interaction between the justification and democratic defense",
        caption.above = TRUE,
        label = "tab:tw-main")
 
@@ -329,13 +329,13 @@ threeway.table <- threeway.plot |>
     fitted_mean = round(fitted_mean, 3),
     fitted_low = round(fitted_low, 3),
     fitted_high = round(fitted_high, 3),
-    fitted_mean2 =aste0(fitted_mean, " [", fitted_low, "; ", fitted_high, "]", sep = "")) |> 
+    fitted_mean2 = paste0(fitted_mean, " [", fitted_low, "; ", fitted_high, "]", sep = "")) |> 
   dplyr::select(term, fitted_mean2)
 
 # table B.3
 kable(threeway.table,
       col.names = c("", "Fitted mean"),
-      caption = "Three way interaction between the justification and democratic defence (fitted means)",
+      caption = "Three way interaction between the justification and democratic defense (fitted means)",
       label = "tw-fitted",
       format = "latex",
       booktabs = TRUE)
@@ -524,7 +524,7 @@ protest.table <- sm.protest |>
 kable(protest.table, 
       booktabs = TRUE, 
       format = "latex",
-      caption = "Does Democratic Defence Result in Political Participation?",
+      caption = "Does Democratic Defense Result in Political Participation?",
       label = "participation",
       escape = TRUE)
 
@@ -538,7 +538,7 @@ sm.protest.plot <- sm.protest |>
     term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
     term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
     term == "actionjudiciary" ~ "Target: judiciary",
-    term == "demdefyes" ~ "*H1*: **Democratic defence hypothesis**"))
+    term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"))
 
 # plot figure 5 ...
 fig5 <- 
@@ -629,7 +629,7 @@ models_eval_splitcntry <- list(sm.eval.nl, sm.eval.fr, sm.eval.de)
 
 # table B.6
 texreg(models_eval_splitcntry,
-       caption = "Does democratic defence matter in different countries?",
+       caption = "Does democratic defense matter in different countries?",
        caption.above = TRUE,
        label = "tab:countries",
        custom.model.names = c("Netherlands", "France", "Germany"))
@@ -662,7 +662,7 @@ country.plot <- bind_rows(nl.plot, de.plot, fr.plot) |>
       term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
       term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
       term == "actionjudiciary" ~ "Target: judiciary",
-      term == "demdefyes" ~ "*H1*: **Democratic defence hypothesis**"),
+      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
     country2 = case_when(
       country == "France" ~ paste0(country, "  \n*n = ", fr.n, "*"),
       country == "Germany" ~ paste0(country, "  \n*n = ", de.n, "*"),
@@ -743,9 +743,9 @@ poppa <- readRDS("data/poppa_integrated.rds") |>
     # create left-right categories
     LR = case_when(
       lroverall < 2.5 ~ "far-left",
-      lroverall >= 2.5 & lroverall < 5 ~ "centre-left",
-      lroverall == 5 ~ "centre", # does not exist, but added for completeness
-      lroverall > 5 & lroverall <= 7.5 ~ "centre-right",
+      lroverall >= 2.5 & lroverall < 5 ~ "center-left",
+      lroverall == 5 ~ "center", # does not exist, but added for completeness
+      lroverall > 5 & lroverall <= 7.5 ~ "center-right",
       lroverall > 7.5 ~ "far-right"),
     
     # change names so they match with demojudges
@@ -765,8 +765,8 @@ poppa <- readRDS("data/poppa_integrated.rds") |>
           LR = "far-left") |> 
   
   # remove otherwise the left_join() below results in errors
-  # both CSU and CDU are classed as centre-right
-  #so does not matter for analysis which on the remove
+  # both CSU and CDU are classed as center-right
+  # so does not matter for analysis which on the remove
   filter(party_name_original != "Christlich-Soziale Union in Bayern") 
 
 parties <- demojudges |> 
@@ -781,11 +781,11 @@ parties <- demojudges |>
 far_left <- parties |> 
   filter(LR == "far-left")
 
-centre_left <- parties |> 
-  filter(LR == "centre-left")
+center_left <- parties |> 
+  filter(LR == "center-left")
 
-centre_right <- parties |> 
-  filter(LR == "centre-right")
+center_right <- parties |> 
+  filter(LR == "center-right")
 
 far_right <- parties |> 
   filter(LR == "far-right")
@@ -798,13 +798,13 @@ fl <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
 summary(fl) # for exact p-values in the text
 
 cl <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
-         data = centre_left,
+         data = center_left,
          weights = weight) 
 
 summary(cl) # for exact p-values in the text
 
 cr <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
-         data = centre_right,
+         data = center_right,
          weights = weight) 
 
 # summary(cr) # for exact p-values in the text
@@ -819,10 +819,10 @@ models_eval_parties <- list(fl, cl, cr, fr)
 
 # table B.7
 texreg(models_eval_parties,
-       caption = "Does democratic defence matter for different party-affiliations?",
+       caption = "Does democratic defense matter for different party-affiliations?",
        caption.above = TRUE,
        label = "tab:parties",
-       custom.model.names = c("Far-left", "Centre-left", "Centre-right", "Far-right"))
+       custom.model.names = c("Far-left", "Center-left", "Center-right", "Far-right"))
 
 ### Figure 7: Party effects ----
 # data preparation
@@ -834,12 +834,12 @@ fl.plot <- fl |>
 cl.plot <- cl |> 
   tidy(conf.int = TRUE) |> 
   filter(!term %in% c("(Intercept)", "post_libdem_frelect")) |> 
-  mutate(type = "Centre-left")
+  mutate(type = "Center-left")
 
 cr.plot <- cr |> 
   tidy(conf.int = TRUE) |> 
   filter(!term %in% c("(Intercept)", "post_libdem_frelect")) |> 
-  mutate(type = "Centre-right")
+  mutate(type = "Center-right")
 
 fright.plot <- fr |> # different name, because there is already a fr.plot for the country-split samples
   tidy(conf.int = TRUE) |> 
@@ -855,27 +855,27 @@ frright.n <- nobs(fr)
 parties.plot <- bind_rows(fl.plot, cl.plot, cr.plot, fright.plot) |> 
   mutate(
     term = case_when(
-      term == "justificationself-serving" ~ "H3b: **Self-serving hypothesis**  \n*Reference: no justification*",
-      term == "justificationcorruption" ~ "H3a: **Positive valence hypothesis**  \n*Reference: no justification*",
-      term == "actionjudiciary" ~ "Targeting the judiciary  \n*Reference: targeting the media*",
-      term == "demdefyes" ~ "H1: **Democratic defence hypothesis**  \n*Reference: no democratic defence*"),
+      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
+      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "actionjudiciary" ~ "Target: judiciary",
+      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
     type2 = case_when(
       type == "Far-left" ~ paste0(type, "  \n*n = ", fl.n, "*"),
-      type == "Centre-left" ~ paste0(type, "  \n*n = ", cl.n, "*"),
-      type == "Centre-right" ~ paste0(type, "  \n*n = ", cr.n, "*"),
+      type == "Center-left" ~ paste0(type, "  \n*n = ", cl.n, "*"),
+      type == "Center-right" ~ paste0(type, "  \n*n = ", cr.n, "*"),
       type == "Far-right" ~ paste0(type, "  \n*n = ", frright.n, "*")))
 
 # plot parameters
 party.colours <- c("Far-left" = "#4D8F8D",
-                   "Centre-left" = "#4C716E",
-                   "Centre-right" = "#6884C1",
+                   "Center-left" = "#4C716E",
+                   "Center-right" = "#6884C1",
                    "Far-right" =  "#719FCE")
 
 # set order
 parties.plot$type2 <- factor(parties.plot$type2, 
                              levels = c(paste0("Far-left", "  \n*n = ", fl.n, "*"), 
-                                        paste0("Centre-left", "  \n*n = ", cl.n, "*"),
-                                        paste0("Centre-right", "  \n*n = ", cr.n, "*"),
+                                        paste0("Center-left", "  \n*n = ", cl.n, "*"),
+                                        paste0("Center-right", "  \n*n = ", cr.n, "*"),
                                         paste0("Far-right", "  \n*n = ", frright.n, "*")))
 
 # plot figure 7...
@@ -933,7 +933,7 @@ ggsave(filename  = "figures/fig7.png",
 left <- demojudges |> 
   filter(rile <= 3)
 
-centre <- demojudges |> 
+center <- demojudges |> 
   filter(rile >= 4 & rile <= 6)
 
 right <- demojudges |> 
@@ -946,8 +946,8 @@ sm.left <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
 
 summary(sm.left) # for exact p-values in the text
 
-sm.centre <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
-                data = centre,
+sm.center <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
+                data = center,
                 weights = weight)
 
 summary(sm.centre) # for exact p-values in the text
@@ -958,14 +958,14 @@ sm.right <- lm(dv_eval ~ justification + action + demdef + post_libdem_frelect,
 
 summary(sm.right) # for exact p-values in the text
 
-models_rile <- list(sm.left, sm.centre, sm.right)
+models_rile <- list(sm.left, sm.center, sm.right)
 
 # table B.8
 texreg(models_rile,
-       caption = "Does democratic defence matter if we split samples according to left-right self-placement?",
+       caption = "Does democratic defense matter if we split samples according to left-right self-placement?",
        caption.above = TRUE,
        label = "tab:rile",
-       custom.model.names = c("Left", "Centre", "Right"))
+       custom.model.names = c("Left", "Center", "Right"))
 
 ### Figure 8: LiRe effects
 # data preparation
@@ -974,10 +974,10 @@ left.plot <- sm.left |>
   filter(!term %in% c("(Intercept)", "post_libdem_frelect")) |> 
   mutate(type = "Left")
 
-centre.plot <- sm.centre |> 
+center.plot <- sm.centre |> 
   tidy(conf.int = TRUE) |> 
   filter(!term %in% c("(Intercept)", "post_libdem_frelect")) |> 
-  mutate(type = "Centre")
+  mutate(type = "Center")
 
 right.plot <- sm.right |> 
   tidy(conf.int = TRUE) |> 
@@ -986,30 +986,30 @@ right.plot <- sm.right |>
 
 # number of observations
 left.n <- nobs(sm.left)
-centre.n <- nobs(sm.centre)
+center.n <- nobs(sm.center)
 right.n <- nobs(sm.right)
 
-rileplot <- bind_rows(left.plot, centre.plot, right.plot) |> 
+rile.plot <- bind_rows(left.plot, center.plot, right.plot) |> 
   mutate(
     term = case_when(
-      term == "justificationself-serving" ~ "H3b: **Self-serving hypothesis**  \n*Reference: no justification*",
-      term == "justificationcorruption" ~ "H3a: **Positive valence hypothesis**  \n*Reference: no justification*",
-      term == "actionjudiciary" ~ "Targeting the judiciary  \n*Reference: targeting the media*",
-      term == "demdefyes" ~ "H1: **Democratic defence hypothesis**  \n*Reference: no democratic defence*"),
+      term == "justificationself-serving" ~ "*H3b*: **Self-serving hypothesis**  \nJustification: power",
+      term == "justificationcorruption" ~ "*H3a*: **Positive valence hypothesis**  \nJustification: corruption",
+      term == "actionjudiciary" ~ "Target: judiciary",
+      term == "demdefyes" ~ "*H1*: **Democratic defense hypothesis**"),
     type2 = case_when(
       type == "Left" ~ paste0(type, "  \n*n = ", left.n, "*"),
-      type == "Centre" ~ paste0(type, "  \n*n = ", centre.n, "*"),
+      type == "Center" ~ paste0(type, "  \n*n = ", center.n, "*"),
       type == "Right" ~ paste0(type, "  \n*n = ", right.n, "*")))
 
 # plot parameters
 rile.colours <- c("Left" = "#FF5154",
-                  "Centre" = "#84DCCF",
+                  "Center" = "#84DCCF",
                   "Right" = "#2A1E5C")
 
 # set order
-rile.plot$type2 <- factor(lire.plot$type2, 
+rile.plot$type2 <- factor(rile.plot$type2, 
                           levels = c(paste0("Left", "  \n*n = ", left.n, "*"), 
-                                     paste0("Centre", "  \n*n = ", centre.n, "*"),
+                                     paste0("Center", "  \n*n = ", center.n, "*"),
                                      paste0("Right", "  \n*n = ", right.n, "*")))
 
 # plot figure 8 ...

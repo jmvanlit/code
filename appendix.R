@@ -30,7 +30,6 @@ demojudges$action <- relevel(demojudges$action, ref = "media")
 demojudges$demdef <- relevel(demojudges$demdef, ref = "no")
 demojudges$treatment_group <- relevel(demojudges$treatment_group, ref = "1")
 
-
 ################################################################################
 ##### ON THE MAIN ANALYSIS   #####
 ##################################
@@ -590,9 +589,10 @@ texreg(man.models,
        label = "tab:man.split",
        custom.model.names = c("Failed all", "Passed 1", "Passed 2", "Passed all 3"))
 
-################################################################################
+######################################################
 ##### DESCRIPTIVES           #####
 ##################################
+
 descriptives_raw <- read.csv("data/demojudges.csv") |> 
   as_tibble() |> 
   filter(!is.na(justification)) |> 
@@ -708,7 +708,7 @@ interval <- descriptives |>
 # table C.3
 kable(interval,
       col.names = c("Variable", "Min", "Max", "Median", "Mean", "SD", "N", "Missing"),
-      caption = "Descriptives: interval covariates",
+      caption = "Descriptives: covariates of interest",
       label = "desc-interval",
       format = "latex",
       booktabs = TRUE)
@@ -820,7 +820,7 @@ im.tw.eval.unw <- lm(data = demojudges,
 
 unw_models <- list(sm.eval.unw, im.si.eval.unw, im.jd.eval.unw, im.tw.eval.unw)
 
-# table D.1
+# table D.4
 texreg(unw_models,
        caption = "Does Democratic Defence Matter (Unweighted Data)?",
        caption.above = TRUE,
@@ -946,7 +946,7 @@ threeway_unw.table <- threeway_unw.plot |>
     fitted_mean2 = paste0(fitted_mean, " [", fitted_low, "; ", fitted_high, "]", sep = "")) |> 
   dplyr::select(term, fitted_mean2)
 
-# table D.2
+# table D.5
 kable(threeway_unw.table,
       col.names = c("", "Fitted mean"),
       caption = "Three way interaction between the justification and democratic defence (Unweighted data)",
@@ -974,7 +974,6 @@ tbl_mediation_unw <- demojudges |>
       action == "judiciary" ~ 1,
       TRUE ~ 0))
 
-
 ##### Credibility --------------------------------------------------------------
 # these models are run without demdef as dv_cred was only shown when demdef == 1
 
@@ -994,7 +993,7 @@ fit_mm_cred_unw <- sem(mm_cred_unw,
                        data = tbl_cred_unw,
                        estimator = "WLSMV")
 
-# table D.3, Panel A
+# table D.6, Panel A
 summary(fit_mm_cred_unw,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1010,7 +1009,7 @@ fit_mm_cred_unw_mlr <- sem(mm_cred_unw,
                            data = tbl_cred_unw,
                            estimator = "MLR")
 
-# table D.3, Panel A
+# table D.7, Panel A
 summary(fit_mm_cred_unw_mlr,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1036,7 +1035,7 @@ fit_mm_ambi_corr_unw <- sem(mm_ambi_corr_unw,
                             data = tbl_ambi_unw,
                             estimator = "WLSMV")
 
-# table D.3, Panel B
+# table D.6, Panel B
 summary(fit_mm_ambi_corr_unw,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1052,7 +1051,7 @@ fit_mm_ambi_corr_unw_mlr <- sem(mm_ambi_corr_unw,
                                 data = tbl_ambi_unw,
                                 estimator = "MLR")
 
-# table D.4, Panel B
+# table D.7, Panel B
 summary(fit_mm_ambi_corr_unw_mlr,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1071,7 +1070,7 @@ fit_mm_ambi_self_unw <- sem(mm_ambi_self_unw,
                             data = tbl_ambi_unw,
                             estimator = "WLSMV")
 
-# table D.3, Panel C
+# table D.6 Panel C
 summary(fit_mm_ambi_self_unw,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1082,7 +1081,7 @@ fit_mm_ambi_self_unw_mlr <- sem(mm_ambi_self_unw,
                                 data = tbl_ambi_unw,
                                 estimator = "MLR")
 
-# table D.4, Panel C
+# table D.7, Panel C
 summary(fit_mm_ambi_self_unw_mlr,
         fit.measures = TRUE,
         standardize = TRUE,
@@ -1121,7 +1120,7 @@ protest.table.unw <- sm.protest.unw |>
   pivot_wider(names_from = dv, values_from = stat) |> 
   t()
 
-# table D.5 
+# table D.8
 kable(protest.table.unw, 
       booktabs = TRUE, 
       format = "latex",
