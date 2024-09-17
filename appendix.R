@@ -10,6 +10,7 @@ library(texreg)
 library(kableExtra)
 library(tidyr)
 library(stringr)
+library(marginaleffects)
 
 ##### Data import --------------------------------------------------------------
 demojudges_raw <- read.csv("data/demojudges.csv") |> 
@@ -70,68 +71,24 @@ model6 <- lm(data = demojudges,
                    # unbalanced covariates
                    post_libdem_frelect)
 
-# Tabel B.10
+# Table B.10
 texreg(model6,
        caption = "Full threeway interaction according to PAP",
        caption.above = TRUE,
        label = "tab:m6",
        custom.model.names = c("Model 6"))
 
-### Figure  B.1: Three way interaction ----
-model6_groups <- lm(dv_eval ~ treatment_group + post_libdem_frelect,
-                    weights = weight,
-                    data = demojudges)
-
-model6_intercept <- coef(model6_groups)[1]
-
-model6_groups_plot <- model6_groups |> 
-  tidy() |> 
-  filter(term != "post_libdem_frelect") |> 
+# Marginal means
+model6_mm <- avg_predictions(model6, by = c("action", "demdef", "justification")) |> 
   mutate(
-    fitted_mean = case_when(
-      term != "(Intercept)" ~ model6_intercept + estimate,
-      TRUE ~ estimate), 
-    fitted_low = fitted_mean - 1.96 * std.error,
-    fitted_high = fitted_mean + 1.96 * std.error,
-    demdef = case_when(
-      term == "(Intercept)" ~ "yes",
-      term == "treatment_group2" ~ "no",
-      term == "treatment_group3" ~ "yes",
-      term == "treatment_group4" ~ "no",
-      term == "treatment_group5" ~ "yes",
-      term == "treatment_group6" ~ "no",
-      term == "treatment_group7" ~ "yes",
-      term == "treatment_group8" ~ "no",
-      term == "treatment_group9" ~ "yes",
-      term == "treatment_group10" ~ "no",
-      term == "treatment_group11" ~ "yes",
-      term == "treatment_group12" ~ "no"),
-    action = case_when(
-      term == "(Intercept)" ~ "judiciary",
-      term == "treatment_group2" ~ "judiciary",
-      term == "treatment_group3" ~ "judiciary",
-      term == "treatment_group4" ~ "judiciary",
-      term == "treatment_group5" ~ "judiciary",
-      term == "treatment_group6" ~ "judiciary",
-      term == "treatment_group7" ~ "media",
-      term == "treatment_group8" ~ "media",
-      term == "treatment_group9" ~ "media",
-      term == "treatment_group10" ~ "media",
-      term == "treatment_group11" ~ "media",
-      term == "treatment_group12" ~ "media"),
+    estimate = round(estimate, 2),
+    conf.low = round(conf.low, 2),
+    conf.high = round(conf.high, 2),
+    label = paste0(estimate, " [", conf.low, "; ", conf.high, "]"),
     justification = case_when(
-      term == "(Intercept)" ~ "Positively valenced\njustification",
-      term == "treatment_group2" ~ "Positively valenced\njustification",
-      term == "treatment_group3" ~ "Self-serving\njustification",
-      term == "treatment_group4" ~ "Self-serving\njustification",
-      term == "treatment_group5" ~ "No\njustification",
-      term == "treatment_group6" ~ "No\njustification",
-      term == "treatment_group7" ~ "Positively valenced\njustification",
-      term == "treatment_group8" ~ "Positively valenced\njustification",
-      term == "treatment_group9" ~ "Self-serving\njustification",
-      term == "treatment_group10" ~ "Self-serving\njustification",
-      term == "treatment_group11" ~ "No\njustification",
-      term == "treatment_group12" ~ "No\njustification"))
+      justification == "none" ~ "**No**  \njustification",
+      justification == "corruption" ~ "**Positively valenced**  \njustification",
+      justification == "self-serving" ~ "**Self-serving**  \njustification"))
 
 # Plot parameters
 im.colours <- c("yes" = "#26c0c7",
@@ -140,97 +97,100 @@ im.colours <- c("yes" = "#26c0c7",
 im.legend <- c("yes" = "Democratic defence **present**",
                "no" = "Democratic defence **absent**")
 
-text.im <- data.frame(
-  label = c("Democratic defence can  \nbe **successful**", "There is a risk of **backlash**  \nagainst democratic defence"),
-  action = c("media", "judiciary"),
-  x = c(2.4, 0.8),
-  y = c(1.25, 1.85),
-  hjust = c(1, 0),
-  angle = c(0, 0)
-)
+# text.im <- data.frame(
+#   label = c("Democratic defence can  \nbe **successful**", "There is a risk of **backlash**  \nagainst democratic defence"),
+#   action = c("media", "judiciary"),
+#   x = c(2.4, 0.8),
+#   y = c(1.25, 1.85),
+#   hjust = c(1, 0),
+#   angle = c(0, 0)
+# )
 
-arrows.im.media <- 
-  tibble(
-    x = c(2.45),
-    xend = c(3.15),
-    y = c(1.25), 
-    yend = c(1.4),
-    action = c("media")
-  )
-
-arrows.im.judic <- 
-  tibble(
-    x = c(1.8),
-    xend = c(3),
-    y = c(1.88), 
-    yend = c(1.92),
-    action = c("judiciary")
-  )
-
+# arrows.im.media <-
+#   tibble(
+#     x = c(2.45),
+#     xend = c(3.15),
+#     y = c(1.25),
+#     yend = c(1.4),
+#     action = c("media")
+#   )
+# 
+# arrows.im.judic <-
+#   tibble(
+#     x = c(1.8),
+#     xend = c(3),
+#     y = c(1.88),
+#     yend = c(1.92),
+#     action = c("judiciary")
+  # )
+ 
 # plot figure B.1 ...
-figb.1 <- 
-  ggplot(data = model6_groups_plot,
+ggplot(data = model6_mm,
          aes(x = justification,
-             y = fitted_mean)) +
-  
+             y = estimate)) +
+
   # errorbar
-  geom_errorbar(aes(ymin = fitted_low,
-                    ymax = fitted_high,
+  geom_errorbar(aes(ymin = conf.low,
+                    ymax = conf.high,
                     colour = demdef),
                 linewidth = 0.6,
                 width = 0,
                 position = position_dodge(width = 0.5)) +
-  
+
   # line
   geom_line(aes(group = demdef,
                 colour = demdef),
             position = position_dodge(width = 0.5)) +
-  
+
   # points
   geom_point(aes(fill = demdef,
                  shape = demdef,
                  colour = demdef),
              size = 3,
              position = position_dodge(width = 0.5)) +
-  
+
   # facets
   facet_wrap(~ action,
              labeller = as_labeller(c(media = "Autocratic action targeting **the media**",
                                       judiciary = "Autocratic action targeting **the judiciary**"))) +
   
-  # annotations
-  geom_richtext(data = text.im,
-                label.colour = "white",
-                text.colour = "darkgrey",
-                size = 3,
-                aes(x = x,
-                    y = y,
-                    label = label,
-                    hjust = hjust,
-                    angle = angle)) +
-  
-  geom_curve(data = arrows.im.media, 
-             aes(x = x, 
-                 y = y, 
-                 xend = xend, 
-                 yend = yend),
-             arrow = arrow(length = unit(0.2, "cm")), 
-             linewidth = 0.3,
-             color = "darkgrey") +
-  
-  geom_curve(data = arrows.im.judic, 
-             aes(x = x, 
-                 y = y, 
-                 xend = xend, 
-                 yend = yend),
-             arrow = arrow(length = unit(0.2, "cm")), 
-             linewidth = 0.3,
-             color = "darkgrey",
-             curvature = -0.5) +
-  
+  # geom_text(aes(label = round(estimate, 2)),
+  #           size = 3,
+  #           position = position_dodge(width = 0.5)) +
+
+  # # annotations
+  # geom_richtext(data = text.im,
+  #               label.colour = "white",
+  #               text.colour = "darkgrey",
+  #               size = 3,
+  #               aes(x = x,
+  #                   y = y,
+  #                   label = label,
+  #                   hjust = hjust,
+  #                   angle = angle)) +
+  # 
+  # geom_curve(data = arrows.im.media,
+  #            aes(x = x,
+  #                y = y,
+  #                xend = xend,
+  #                yend = yend),
+  #            arrow = arrow(length = unit(0.2, "cm")),
+  #            linewidth = 0.3,
+  #            color = "darkgrey") +
+  # 
+  # geom_curve(data = arrows.im.judic,
+  #            aes(x = x,
+  #                y = y,
+  #                xend = xend,
+  #                yend = yend),
+  #            arrow = arrow(length = unit(0.2, "cm")),
+  #            linewidth = 0.3,
+  #            color = "darkgrey",
+  #            curvature = -0.5) +
+
   # theme
   theme_classic() +
-  theme(axis.text.y = ggtext::element_markdown(),
+  theme(axis.text.x = ggtext::element_markdown(),
         legend.text = ggtext::element_markdown(),
         legend.title = element_blank(),
         legend.position = "bottom",
@@ -245,17 +205,22 @@ figb.1 <-
                     labels = im.legend) +
   scale_shape_manual(values = c(22, 23),
                      labels = im.legend) +
-  scale_x_discrete(limits=c("Self-serving\njustification", "No\njustification", "Positively valenced\njustification"))
+  scale_x_discrete(limits=c("**Self-serving**  \njustification", 
+                            "**No**  \njustification", 
+                            "**Positively valenced**  \njustification"))
 
 # ... and save
 ggsave(filename  = "figures/figb.1.png",
-       plot = figb.1,
        width = 18,
        height = 14,
        dpi = 300,
        units = "cm")
 
-#### Modifications checks for the mediation models -----------------------------
+################################################################################
+##### ON THE MEDIATION ANALYSIS   #####
+#######################################
+
+### Modifications checks for the mediation models ------------------------------
 
 # Ambiguity: corruption
 modificationindices(fit_mm_ambi_corr, 
@@ -338,7 +303,41 @@ summary(fit_mm_cred_corr_mod,
         standardize = TRUE,
         rsquare = TRUE)
 
-##### Manipulation and Attention Checks ----------------------------------------
+### Simple OLS instead of mediation --------------------------------------------
+
+# Credibility as DV
+model_cred <- lm(data = tbl_cred,
+                 dv_cred ~ action + justification + post_libdem_frelect) 
+# exclude demdef as question is only shown to respondents who saw a democratic
+
+# Ambiguity as DV
+model_ambi <- lm(data = tbl_ambi,
+                 dv_ambi ~ action + justification + demdef + post_libdem_frelect)
+
+# Table
+texreg(list(model_cred, model_ambi),
+       caption = "The effect of treatments on the mediators as dependent variable",
+       custom.model.names = c("DV: Credibility", "DV: Ambiguity"),
+       caption.above = TRUE,
+       label = "tab:med_as_dv")
+
+# Ambiguity and Credibility as IVs
+cred_as_iv <- lm(data = tbl_cred,
+                 dv_eval ~ dv_cred + action + justification + post_libdem_frelect)
+
+ambi_as_iv <- lm(data = tbl_ambi,
+                 dv_eval ~ dv_ambi + action + demdef + justification + post_libdem_frelect)
+
+# Table
+texreg(list(cred_as_iv, ambi_as_iv),
+       caption = "The effect of mediators on democracy evaluation",
+       custom.model.names = c("IV: Credibility", "IV: Ambiguity"),
+       caption.above = TRUE,
+       label = "tab:med_as_iv")
+
+################################################################################
+##### MANIPULATION AND ATTENTION   #####
+########################################
 
 ### Counts ----
 att <- demojudges |> 
@@ -589,7 +588,7 @@ texreg(man.models,
        label = "tab:man.split",
        custom.model.names = c("Failed all", "Passed 1", "Passed 2", "Passed all 3"))
 
-######################################################
+#################################################################################
 ##### DESCRIPTIVES           #####
 ##################################
 
@@ -830,7 +829,7 @@ texreg(unw_models,
 # Model 4
 threeway_unw <- demojudges |> 
   mutate(
-    group = as.factor(case_when(
+    treatment_group = as.factor(case_when(
       treatment_group == 2 | treatment_group == 8 ~ 1, # no democratic defence against corruption
       treatment_group == 6 | treatment_group == 12 ~ 2, # no democratic defence against none
       treatment_group == 4 | treatment_group == 10 ~ 3, # no democratic defence against self-serving
@@ -841,114 +840,36 @@ threeway_unw <- demojudges |>
       treatment_group == 11 ~ 8, # not-self-interested democratic defence against none
       treatment_group == 9 ~ 9))) # not-self-interested democratic defence againstself-serving
 
-threeway_unw$group <- relevel(threeway_unw$group, ref = "1")
+threeway_unw$treatment_group <- relevel(threeway_unw$treatment_group, ref = "1")
 
-# fit coefficients based on the aggregated treatment groups  
+# fit coefficients based on the aggregated treatment groups
 model_threeway_unw <- lm(data = threeway_unw,
-                     
+
                      dv_eval ~
-                       
+
                        # treatments
-                       group)
+                       treatment_group)
 
-threeway_unw.intercept <- coef(model_threeway_unw)[1]
-
-threeway_unw.plot <- model_threeway_unw |> 
-  tidy() |> 
-  filter(term != "post_libdem_frelect") |> 
+# Marginal means
+threeway_unw.table <- avg_predictions(model_threeway_unw, by = "treatment_group") |> 
   mutate(
-    fitted_mean = case_when(
-      term != "(Intercept)" ~ threeway_unw.intercept + estimate,
-      TRUE ~ estimate), 
-    fitted_low = fitted_mean - 1.96 * std.error,
-    fitted_high = fitted_mean + 1.96 * std.error,
+    estimate = round(estimate, 2),
+    conf.low = round(conf.low, 2),
+    conf.high = round(conf.high, 2),
     demdef = case_when(
-      term == "(Intercept)" | term == "group2" | term == "group3"  ~ "no",
-      term == "group4" | term == "group5" | term == "group6"  ~ "self-interested",
-      term == "group7" | term == "group8" | term == "group9"  ~ "selfless"),
+      treatment_group == "1" | treatment_group == "2" | treatment_group == "3"  ~ "no",
+      treatment_group == "4" | treatment_group == "5" | treatment_group == "6"  ~ "self-interested",
+      treatment_group == "7" | treatment_group == "8" | treatment_group == "9"  ~ "selfless"),
     justification = case_when(
-      term == "(Intercept)" | term == "group4" | term == "group7"  ~ "Positively valenced\njustification",
-      term == "group2" | term == "group5" | term == "group8"  ~ "No\njustification",
-      term == "group3" | term == "group6" | term == "group9"  ~ "Self-serving\njustification"))
-
-# plot parameters
-tw.colours <- c("no" = "#5151d3",
-                "self-interested" = "#e68619",
-                "selfless" = "#26c0c7")
-
-tw.legend <- c("no" = "**No** democratic  \ndefence",
-               "self-interested" = "**Self-interested**  \ndemocratic defence",
-               "selfless" = "**Selfless**  \ndemocratic defence")
-
-# plot figure D.1 ...
-figd.1 <- 
-  ggplot(data = threeway_unw.plot,
-         aes(x = justification,
-             y = fitted_mean)) +
-  
-  # errorbar
-  geom_errorbar(aes(ymin = fitted_low,
-                    ymax = fitted_high,
-                    colour = demdef),
-                linewidth = 0.6,
-                width = 0,
-                position = position_dodge(width = 0.5)) +
-  
-  # line
-  geom_line(aes(group = demdef,
-                colour = demdef),
-            position = position_dodge(width = 0.5)) +
-  
-  # points
-  geom_point(aes(fill = demdef,
-                 shape = demdef,
-                 colour = demdef),
-             size = 3,
-             position = position_dodge(width = 0.5)) +
-  
-  # theme
-  theme_classic() +
-  theme(axis.text.y = ggtext::element_markdown(),
-        legend.text = ggtext::element_markdown(),
-        legend.title = element_blank(),
-        legend.position = "bottom",
-        legend.key.width = unit(1.5, "cm"))+
-  labs(x = NULL,
-       y = NULL,
-       title = NULL) +
-  scale_colour_manual(values = tw.colours,
-                      labels = tw.legend) +
-  scale_fill_manual(values = tw.colours,
-                    labels = tw.legend) +
-  scale_shape_manual(values = c(15, 17, 19),
-                     labels = tw.legend) +
-  scale_x_discrete(limits=c("Self-serving\njustification", "No\njustification", "Positively valenced\njustification"))
-
-# ... and save
-ggsave(filename  = "figures/figd.1.png",
-       plot = figd.1,
-       width = 18,
-       height = 14,
-       dpi = 300,
-       units = "cm")
-
-# fitted means for the three way interaction
-threeway_unw.table <- threeway_unw.plot |> 
-  mutate(
-    stars = case_when(
-      p.value < 0.05 ~ "*",
-      p.value < 0.01 ~ "**",
-      p.value < 0.001 ~ "***",
-      TRUE ~ ""),
-    fitted_mean = round(fitted_mean, 3),
-    fitted_low = round(fitted_low, 3),
-    fitted_high = round(fitted_high, 3),
-    fitted_mean2 = paste0(fitted_mean, " [", fitted_low, "; ", fitted_high, "]", sep = "")) |> 
-  dplyr::select(term, fitted_mean2)
+      treatment_group == "1" | treatment_group == "4" | treatment_group == "7"  ~ "Positively valenced justification",
+      treatment_group == "2" | treatment_group == "5" | treatment_group == "8"  ~ "No justification",
+      treatment_group == "3" | treatment_group == "6" | treatment_group == "9"  ~ "Self-serving justification"),
+    label = paste0(estimate, " [", conf.low, "; ", conf.high, "]")) |> 
+  dplyr::select(demdef, justification, label)
 
 # table D.5
 kable(threeway_unw.table,
-      col.names = c("", "Fitted mean"),
+      col.names = c("", "", "Marginal mean [with 95% CIs]"),
       caption = "Three way interaction between the justification and democratic defence (Unweighted data)",
       label = "tw-appendix",
       format = "latex",
